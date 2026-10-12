@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#151714">
+  <meta name="description" content="Je oefeningen, gewicht en reps. Eenvoudig bijgehouden op je eigen apparaat.">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" href="./icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="./apple-touch-icon.png">
+  <link rel="stylesheet" href="./styles.css">
+  <script type="module" src="./app.js"></script>
+  <title>Fitness — jouw training</title>
+</head>
+<body>
+  <div class="shell">
+    <header class="app-header">
+      <div><p class="eyebrow">JOUW TRAINING. JOUW TEMPO.</p><h1>Fitness<span>.</span></h1></div>
+      <div class="header-actions">
+        <button class="icon-button" id="history-button" aria-label="Eerdere trainingen" title="Eerdere trainingen"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11a9 9 0 1 1 2.6 7M3 5v6h6m3-4v5l3 2"/></svg></button>
+        <button class="icon-button" id="settings-button" aria-label="Instellingen en back-up" title="Instellingen"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 17h16M9 4v6m6 4v6"/></svg></button>
+      </div>
+    </header>
+    <main id="main">
+      <div class="date-bar">
+        <button class="icon-button" id="previous-day" aria-label="Vorige dag"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14 6-6 6 6 6"/></svg></button>
+        <div class="date-control"><label for="workout-date" id="date-label">Vandaag</label><input type="date" id="workout-date" aria-label="Trainingsdatum" min="1900-01-01"></div>
+        <button class="icon-button" id="next-day" aria-label="Volgende dag"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m10 6 6 6-6 6"/></svg></button>
+      </div>
+      <div class="split-tabs" role="tablist" aria-label="Trainingsschema">
+        <button role="tab" id="tab-push" data-split="push" aria-selected="true" aria-controls="workout-panel">Push</button>
+        <button role="tab" id="tab-pull" data-split="pull" aria-selected="false" aria-controls="workout-panel" tabindex="-1">Pull</button>
+        <button role="tab" id="tab-legs" data-split="legs" aria-selected="false" aria-controls="workout-panel" tabindex="-1">Legs</button>
+      </div>
+      <section id="workout-panel" role="tabpanel" aria-labelledby="tab-push">
+        <div class="section-heading"><div><h2 id="split-title">Push day</h2><p id="split-description">Borst, schouders & triceps</p></div><span id="exercise-count" class="count">0 oefeningen</span></div>
+        <p class="history-note" id="history-note" hidden></p>
+        <div id="exercise-list"></div>
+        <div class="empty-state" id="empty-state" hidden>
+          <div class="empty-icon"><svg viewBox="0 0 48 48" aria-hidden="true"><path d="M16 24h16M10 17v14m6-19v24m16-24v24m6-19v14M7 24h3m28 0h3"/></svg></div>
+          <h3>Jouw eerste oefening</h3><p>Voeg een oefening toe.<br>Daarna hoef je alleen je cijfers bij te werken.</p>
+        </div>
+        <button id="add-exercise" class="add-button"><span aria-hidden="true">+</span> Oefening toevoegen</button>
+        <p id="workout-hint" class="workout-hint">Je laatste waarden staan klaar voor de volgende keer.</p>
+        <button id="record-workout" class="secondary full" hidden>Deze training bewaren</button>
+      </section>
+      <p id="app-error" class="error-banner" role="alert" hidden></p>
+      <noscript><p class="error-banner">Schakel JavaScript in om je oefeningen te bewaren.</p></noscript>
+    </main>
+    <footer class="status-footer"><span id="save-status" role="status" aria-live="polite"><span class="status-dot"></span>Even laden…</span><button id="update-button" class="text-button" hidden>Update klaar</button></footer>
+  </div>
+
+  <dialog id="exercise-dialog" aria-labelledby="exercise-dialog-title">
+    <form id="exercise-form">
+      <div class="dialog-heading"><h2 id="exercise-dialog-title">Oefening toevoegen</h2><button type="button" class="icon-button close-dialog" aria-label="Sluiten">×</button></div>
+      <label class="field-label" for="exercise-name">Naam van de oefening</label>
+      <input id="exercise-name" class="text-input" maxlength="120" placeholder="Bijv. squat" autocomplete="off" required>
+      <div class="form-grid"><div><label class="field-label" for="exercise-weight">Gewicht (kg)</label><input id="exercise-weight" class="text-input" inputmode="decimal" value="0" required></div><div><label class="field-label" for="exercise-reps">Reps</label><input id="exercise-reps" class="text-input" inputmode="numeric" value="0" required></div></div>
+      <p id="exercise-error" class="field-error" role="alert" hidden></p>
+      <button type="submit" class="primary full" id="save-exercise">Toevoegen</button>
+      <button type="button" id="delete-exercise" class="danger full" hidden>Oefening verwijderen</button>
+    </form>
+  </dialog>
+
+  <dialog id="settings-dialog" aria-labelledby="settings-title">
+    <div class="dialog-heading"><h2 id="settings-title">Jouw gegevens</h2><button class="icon-button close-dialog" aria-label="Sluiten">×</button></div>
+    <div class="privacy-card"><span class="privacy-symbol" aria-hidden="true">↳</span><div><strong>Op dit apparaat bewaard</strong><p>Je oefeningen worden niet naar een server gestuurd. Wie de link opent, ziet jouw gegevens niet.</p></div></div>
+    <p class="settings-copy">Bewaar af en toe een back-up in Bestanden of je eigen iCloud Drive. Je kunt die op een nieuw toestel terugzetten.</p>
+    <button id="export-backup" class="primary full">Back-up opslaan</button>
+    <button id="import-backup" class="secondary full">Back-up of oefeningen importeren</button>
+    <input id="import-file" type="file" accept=".json,application/json" hidden>
+    <p id="backup-message" class="settings-copy" role="status"></p>
+    <details><summary>Op je iPhone gebruiken</summary><p>Open deze pagina in Safari. Kies Deel → Zet op beginscherm → Open als webapp. Voer je trainingen vervolgens via dat icoon in.</p><p>De opslag in Safari en de geïnstalleerde webapp kan verschillen. Gebruik steeds hetzelfde icoon.</p></details>
+    <details><summary>Privacy & opslag</summary><p>Alleen de appcode is openbaar. Je invoer blijft lokaal, behalve een back-up die je zelf opslaat of deelt. Er zijn geen trackers of advertenties. GitHub kan je IP-adres registreren bij het laden van de app.</p><p>Wie je ontgrendelde toestel gebruikt, kan de tracker openen. Je gegevens synchroniseren niet automatisch. Bij wissen of verlies van het toestel heb je een back-up nodig.</p><p id="storage-info">De app vraagt waar mogelijk om blijvende opslag.</p></details>
+    <div class="settings-bottom"><span id="offline-status">Offline gebruik voorbereiden…</span><span>v1.0</span></div>
+  </dialog>
+
+  <dialog id="history-dialog" aria-labelledby="history-title"><div class="dialog-heading"><h2 id="history-title">Eerdere trainingen</h2><button class="icon-button close-dialog" aria-label="Sluiten">×</button></div><div id="history-list"></div></dialog>
+  <dialog id="confirm-dialog" aria-labelledby="confirm-title"><h2 id="confirm-title">Weet je het zeker?</h2><p id="confirm-message" class="settings-copy"></p><div class="confirm-actions"><button id="confirm-cancel" class="secondary">Annuleren</button><button id="confirm-ok" class="primary">Doorgaan</button></div></dialog>
+  <div id="toast" role="status" hidden></div>
+</body>
+</html>
