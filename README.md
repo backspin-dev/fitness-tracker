@@ -45,6 +45,14 @@ in je eigen iCloud Drive, en later terugzetten. Dit bestand bevat jouw gegevens
 leesbaar: bewaar het op een plek waar alleen jij toegang toe hebt en upload het
 niet naar deze repository. Maak geregeld een nieuwe back-up.
 
+Zodra je trainingsgegevens hebt, start een lokale herinnering. Na **14 dagen**
+verschijnt bij het openen of hervatten van de app een melding met **Back-up
+opslaan** en **Over 3 dagen**. Er komt geen pushbericht wanneer de app gesloten
+is. Na een export bevestig je zelf met **Ja, bewaard** dat het bestand veilig
+staat; pas dan beginnen de volgende 14 dagen. Delen of downloaden annuleren
+telt niet als een bewaarde back-up. De app maakt geen automatische externe
+kopie. De herinneringsdatum staat apart op dit toestel en zit niet in exports.
+
 Websitegegevens wissen, verwijderen van de app, een privévenster of opschoning
 door iOS kan lokale gegevens laten verdwijnen. Permanente bewaring kan een
 webapp niet garanderen. Alleen tekst en getallen worden opgeslagen; het werkelijke

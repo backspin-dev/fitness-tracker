@@ -6,3 +6,6 @@
 
 .status-dot.status-error{background:var(--danger)}
 .source-note{color:var(--accent);font-size:11px;line-height:1.65;margin:-5px 0 18px;max-width:100%}
+.backup-reminder{padding:16px;margin-bottom:24px;border:1px solid #627b3a;border-radius:14px;background:#cefa690a}
+.backup-reminder h2{font-size:17px;letter-spacing:-.3px}.backup-reminder p{font-size:12px;line-height:1.65;color:var(--muted);margin-top:7px}
+.reminder-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}.reminder-actions button{font-size:12px;padding:11px 13px;min-height:44px}

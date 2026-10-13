@@ -1,4 +1,5 @@
-import { createState, localDate, getWorkout, getPreviousWorkout, commitWorkout, loadState, saveState, validateState, exportBackup } from './data.js';
+import { createState, localDate, getWorkout, getPreviousWorkout, commitWorkout, loadState, saveState, validateState, exportBackup, loadBackupReminder, saveBackupReminder } from './data.js';
+import { createReminder, isReminderDue, confirmBackup, snoozeReminder, hasTrainingData } from './backup-reminder.js';
 
 const $ = id => document.getElementById(id);
 const splitInfo = { push: ['Push day', 'Borst, schouders & triceps'], pull: ['Pull day', 'Rug & biceps'], legs: ['Leg day', 'Benen & billen'] };
@@ -7,6 +8,39 @@ let state = createState(), split = 'push', date = localDate(), loaded = false;
 let saveQueue = Promise.resolve(), revision = 0, pending = 0, failed = false;
 let editId = null, toastTimer, waitingWorker = null, releaseEditor = null;
 let knownToday = localDate(), importing = false;
+let backupReminder = null, reminderReady = false, reminderError = false, exporting = false;
+let reminderQueue = Promise.resolve();
+
+function updateBackupReminder() {
+  const today = localDate();
+  $('backup-reminder').hidden = !loaded || !hasTrainingData(state) || !backupReminder || !isReminderDue(backupReminder, today);
+  $('reminder-status').textContent = reminderError
+    ? 'De herinnering kon niet worden bewaard of geladen. Je kunt hieronder zelf een back-up opslaan.'
+    : !loaded ? 'Open de app in één tabblad om je herinnering bij te houden.'
+    : backupReminder?.confirmedOn ? `Laatste back-up door jou bevestigd: ${prettyDate(backupReminder.confirmedOn)}. Herinnering na 14 dagen.`
+    : 'Je krijgt na 14 dagen een herinnering zodra je de app opent. Je kunt ook nu al een back-up opslaan.';
+  $('reminder-export').disabled = exporting || importing;
+  $('reminder-snooze').disabled = exporting || importing;
+}
+function persistBackupReminder(next) {
+  backupReminder = next;
+  reminderQueue = reminderQueue.catch(() => {}).then(() => saveBackupReminder(next)).then(() => {
+    reminderError = false; return true;
+  }).catch(() => { reminderError = true; return false; }).finally(updateBackupReminder);
+  updateBackupReminder();
+  return reminderQueue;
+}
+function ensureBackupReminder() {
+  if (loaded && reminderReady && !backupReminder && hasTrainingData(state)) return persistBackupReminder(createReminder(localDate()));
+  updateBackupReminder();
+  return Promise.resolve(true);
+}
+async function prepareBackupReminder() {
+  try {
+    backupReminder = await loadBackupReminder(); reminderReady = true;
+    await ensureBackupReminder();
+  } catch { reminderError = true; updateBackupReminder(); }
+}
 
 function textNode(tag, text, className) {
   const node = document.createElement(tag);
@@ -39,12 +73,13 @@ function queueSave() {
   const snapshot = validateState(state);
   pending++;
   setStatus('Opslaan…');
-  saveQueue = saveQueue.catch(() => {}).then(() => saveState(snapshot)).then(() => {
+  saveQueue = saveQueue.catch(() => {}).then(() => saveState(snapshot)).then(async () => {
     if (currentRevision === revision) {
       failed = false;
       $('app-error').hidden = true;
       setStatus('Bewaard op dit apparaat');
     }
+    await ensureBackupReminder();
     return true;
   }).catch(() => {
     if (currentRevision === revision) {
@@ -154,6 +189,7 @@ function render() {
   $('exercise-list').replaceChildren(...cards);
   $('empty-state').hidden = !!workout.length;
   updateContext();
+  updateBackupReminder();
   if (!loaded) document.querySelectorAll('main button, main input').forEach(item => { item.disabled = true; });
 }
 function selectDate(value) {
@@ -219,7 +255,7 @@ $('delete-exercise').addEventListener('click', async () => {
     changeWorkout(getWorkout(state, date, split).filter(item => item.id !== editId)); $('exercise-dialog').close();
   }
 });
-$('settings-button').addEventListener('click', () => $('settings-dialog').showModal());
+$('settings-button').addEventListener('click', () => { updateBackupReminder(); $('settings-dialog').showModal(); });
 $('history-button').addEventListener('click', () => {
   const items = Object.entries(state.sessions).sort(([a], [b]) => b.localeCompare(a)).map(([key, workout]) => {
     const [day, type] = key.split(':'); const button = document.createElement('button'); button.className = 'history-item';
@@ -229,7 +265,19 @@ $('history-button').addEventListener('click', () => {
   $('history-list').replaceChildren(...(items.length ? items : [textNode('p', 'Nog geen trainingen bewaard. Je eerste wijziging wordt automatisch opgeslagen.', 'settings-copy')]));
   $('history-dialog').showModal();
 });
-$('export-backup').addEventListener('click', async () => {
+$('reminder-snooze').addEventListener('click', async () => {
+  if (!loaded || importing || exporting || !backupReminder) return;
+  if (await persistBackupReminder(snoozeReminder(backupReminder, localDate()))) toast('We herinneren je over 3 dagen opnieuw.');
+});
+$('reminder-export').addEventListener('click', () => {
+  if (!loaded || importing || exporting) return;
+  $('settings-dialog').showModal(); exportFile();
+});
+$('export-backup').addEventListener('click', exportFile);
+async function exportFile() {
+  if (exporting || importing) return;
+  exporting = true; $('export-backup').disabled = true; updateBackupReminder();
+  try {
   const json = exportBackup(state);
   const file = new File([json], `fitness-backup-${localDate()}.json`, { type: 'application/json' });
   function downloadFile() {
@@ -244,8 +292,18 @@ $('export-backup').addEventListener('click', async () => {
     } else {
       downloadFile();
     }
-  } catch (error) { if (error.name !== 'AbortError') downloadFile(); }
-});
+  } catch (error) {
+    if (error.name === 'AbortError') { $('backup-message').textContent = 'Back-up geannuleerd. De herinnering blijft staan.'; return; }
+    downloadFile();
+  }
+  // A share/download result does not prove that the user kept the file.
+  if (loaded && hasTrainingData(state) && await confirmAction('Back-up bewaard?', 'Heb je het bestand opgeslagen in Bestanden of je eigen iCloud Drive? Bevestig pas als het daar staat. Dan herinneren we je over 14 dagen opnieuw.', 'Ja, bewaard')) {
+    const saved = await persistBackupReminder(confirmBackup(backupReminder || createReminder(localDate()), localDate()));
+    $('backup-message').textContent = saved ? 'Bevestigd. Over 14 dagen verschijnt de volgende herinnering wanneer je de app opent.' : 'Back-up bevestigd, maar de herinneringsdatum kon niet worden bewaard.';
+  }
+  } catch { $('backup-message').textContent = 'Back-up maken is niet gelukt. Probeer het opnieuw. De herinnering is niet aangepast.'; }
+  finally { exporting = false; $('export-backup').disabled = false; updateBackupReminder(); }
+}
 $('import-backup').addEventListener('click', () => { if (loaded) $('import-file').click(); });
 $('import-file').addEventListener('change', async event => {
   const file = event.target.files[0]; event.target.value = ''; if (!file) return;
@@ -265,7 +323,7 @@ $('import-file').addEventListener('change', async event => {
     $('backup-message').textContent = 'Import gelukt. Je gegevens zijn op dit apparaat bewaard.';
     $('settings-dialog').close(); toast('Je oefeningen staan klaar.');
   } catch (error) { $('backup-message').textContent = `Import niet uitgevoerd. ${error instanceof SyntaxError ? 'Dit is geen geldig JSON-bestand.' : error.message}`; }
-  finally { importing = false; $('main').inert = false; $('settings-dialog').inert = false; }
+  finally { importing = false; $('main').inert = false; $('settings-dialog').inert = false; await ensureBackupReminder(); }
 });
 $('update-button').addEventListener('click', async () => {
   await saveQueue; if (failed || !waitingWorker) return;
@@ -279,6 +337,7 @@ window.addEventListener('pagehide', () => releaseEditor?.());
 window.addEventListener('pageshow', event => { if (event.persisted) location.reload(); });
 function handleNewDay() {
   if (document.visibilityState !== 'visible' || !loaded) return;
+  updateBackupReminder();
   const today = localDate();
   if (today !== knownToday) {
     if (date === knownToday) {
@@ -323,6 +382,7 @@ async function init() {
     }
     state = await loadState() || createState(); split = state.ui?.split || 'push'; loaded = canEdit;
     render();
+    if (canEdit) await prepareBackupReminder();
     if (!canEdit) {
       showError('De tracker staat al open in een ander tabblad. Sluit dat tabblad en laad deze pagina opnieuw om te wijzigen.');
       setStatus('Geopend als leesweergave'); $('import-backup').disabled = true;

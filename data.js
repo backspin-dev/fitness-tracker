@@ -1,4 +1,6 @@
 // Fitnessgegevens blijven in IndexedDB op dit apparaat. Geen netwerkverzoeken.
+import { validateReminder } from './backup-reminder.js';
+
 export const SPLITS = Object.freeze(['push', 'pull', 'legs']);
 const MAX_BYTES = 5 * 1024 * 1024;
 const MAX_WORKOUT_EXERCISES = 200;
@@ -7,6 +9,7 @@ const MAX_TOTAL_EXERCISES = 50000;
 const DATABASE = 'fitness-tracker';
 const STORE = 'state';
 const KEY = 'current';
+const REMINDER_KEY = 'backup-reminder';
 
 function invalid(message) {
   throw new Error(`Ongeldige trainingsgegevens: ${message}`);
@@ -219,4 +222,15 @@ export async function loadState() {
 export async function saveState(state) {
   const snapshot = validateState(state);
   await transaction('readwrite', store => store.put(snapshot, KEY));
+}
+
+// Apparaatinstellingen staan los van trainingen en gaan nooit mee in een back-up.
+export async function loadBackupReminder() {
+  const saved = await transaction('readonly', store => store.get(REMINDER_KEY));
+  return saved === undefined ? null : validateReminder(saved);
+}
+
+export async function saveBackupReminder(reminder) {
+  const snapshot = validateReminder(reminder);
+  await transaction('readwrite', store => store.put(snapshot, REMINDER_KEY));
 }

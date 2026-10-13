@@ -26,6 +26,11 @@
       </div>
     </header>
     <main id="main">
+      <aside id="backup-reminder" class="backup-reminder" aria-labelledby="reminder-title" hidden>
+        <h2 id="reminder-title">Tijd voor een back-up</h2>
+        <p>Bewaar een kopie van je trainingen in Bestanden of je eigen iCloud Drive.</p>
+        <div class="reminder-actions"><button id="reminder-export" class="primary">Back-up opslaan</button><button id="reminder-snooze" class="secondary">Over 3 dagen</button></div>
+      </aside>
       <div class="date-bar">
         <button class="icon-button" id="previous-day" aria-label="Vorige dag"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14 6-6 6 6 6"/></svg></button>
         <div class="date-control"><label for="workout-date" id="date-label">Vandaag</label><input type="date" id="workout-date" aria-label="Trainingsdatum" min="1900-01-01"></div>
@@ -71,13 +76,14 @@
     <div class="dialog-heading"><h2 id="settings-title">Jouw gegevens</h2><button class="icon-button close-dialog" aria-label="Sluiten">×</button></div>
     <div class="privacy-card"><span class="privacy-symbol" aria-hidden="true">↳</span><div><strong>Op dit apparaat bewaard</strong><p>Je oefeningen worden niet naar een server gestuurd. Wie de link opent, ziet jouw gegevens niet.</p></div></div>
     <p class="settings-copy">Bewaar af en toe een back-up in Bestanden of je eigen iCloud Drive. Je kunt die op een nieuw toestel terugzetten.</p>
+    <p id="reminder-status" class="settings-copy">Je krijgt elke 14 dagen een herinnering bij het openen van de app.</p>
     <button id="export-backup" class="primary full">Back-up opslaan</button>
     <button id="import-backup" class="secondary full">Back-up of oefeningen importeren</button>
     <input id="import-file" type="file" accept=".json,application/json" hidden>
     <p id="backup-message" class="settings-copy" role="status"></p>
     <details><summary>Op je iPhone gebruiken</summary><p>Open deze pagina in Safari. Kies Deel → Zet op beginscherm → Open als webapp. Voer je trainingen vervolgens via dat icoon in.</p><p>De opslag in Safari en de geïnstalleerde webapp kan verschillen. Gebruik steeds hetzelfde icoon.</p></details>
     <details><summary>Privacy & opslag</summary><p>Alleen de appcode is openbaar. Je invoer blijft lokaal, behalve een back-up die je zelf opslaat of deelt. Er zijn geen trackers of advertenties. GitHub kan je IP-adres registreren bij het laden van de app.</p><p>Wie je ontgrendelde toestel gebruikt, kan de tracker openen. Je gegevens synchroniseren niet automatisch. Bij wissen of verlies van het toestel heb je een back-up nodig.</p><p id="storage-info">De app vraagt waar mogelijk om blijvende opslag.</p></details>
-    <div class="settings-bottom"><span id="offline-status">Offline gebruik voorbereiden…</span><span>v1.0</span></div>
+    <div class="settings-bottom"><span id="offline-status">Offline gebruik voorbereiden…</span><span>v1.1</span></div>
   </dialog>
 
   <dialog id="history-dialog" aria-labelledby="history-title"><div class="dialog-heading"><h2 id="history-title">Eerdere trainingen</h2><button class="icon-button close-dialog" aria-label="Sluiten">×</button></div><div id="history-list"></div></dialog>
