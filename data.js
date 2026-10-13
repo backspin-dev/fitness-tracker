@@ -113,9 +113,30 @@ export function validateState(input) {
   return result;
 }
 
+export function getPreviousWorkout(state, date, split) {
+  dateKey(date);
+  splitKey(split);
+  let previousDate = null;
+  for (const key of Object.keys(state.sessions)) {
+    if (key.slice(11) !== split) continue;
+    const candidateDate = dateKey(key.slice(0, 10));
+    if (candidateDate < date && (previousDate === null || candidateDate > previousDate)) {
+      previousDate = candidateDate;
+    }
+  }
+  if (previousDate === null) return null;
+  return {
+    date: previousDate,
+    exercises: exercises(state.sessions[`${previousDate}:${split}`]),
+  };
+}
+
 export function getWorkout(state, date, split) {
   const key = `${dateKey(date)}:${splitKey(split)}`;
-  return exercises(Object.hasOwn(state.sessions, key) ? state.sessions[key] : state.routines[split]);
+  if (Object.hasOwn(state.sessions, key)) return exercises(state.sessions[key]);
+  const previous = getPreviousWorkout(state, date, split);
+  // Een bewust leeggemaakte vorige training blijft leeg.
+  return previous ? previous.exercises : exercises(state.routines[split]);
 }
 
 export function commitWorkout(state, date, split, workout) {

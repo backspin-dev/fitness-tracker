@@ -1,4 +1,4 @@
-import { createState, localDate, getWorkout, commitWorkout, loadState, saveState, validateState, exportBackup } from './data.js';
+import { createState, localDate, getWorkout, getPreviousWorkout, commitWorkout, loadState, saveState, validateState, exportBackup } from './data.js';
 
 const $ = id => document.getElementById(id);
 const splitInfo = { push: ['Push day', 'Borst, schouders & triceps'], pull: ['Pull day', 'Rug & biceps'], legs: ['Leg day', 'Benen & billen'] };
@@ -82,13 +82,16 @@ function updateContext() {
   $('previous-day').disabled = date <= '1900-01-01';
   const workout = getWorkout(state, date, split);
   const recorded = Object.hasOwn(state.sessions, `${date}:${split}`);
+  const previous = recorded ? null : getPreviousWorkout(state, date, split);
+  $('source-note').hidden = !previous || !workout.length;
+  $('source-note').textContent = previous ? `Klaargezet vanuit je laatste ${split[0].toUpperCase() + split.slice(1)}-training · ${prettyDate(previous.date)}` : '';
   $('exercise-count').textContent = `${workout.length} oefening${workout.length === 1 ? '' : 'en'}`;
   $('history-note').hidden = date === today;
   $('history-note').textContent = recorded
-    ? 'Je bekijkt een eerdere training. Wijzigingen hier veranderen je schema voor vandaag niet.'
-    : 'Op deze datum staat nog geen training. Je huidige schema staat klaar; pas het aan of bewaar deze training.';
+    ? 'Je bewerkt de opgeslagen training op deze datum. Andere opgeslagen trainingen blijven behouden.'
+    : 'Op deze datum staat nog geen training. De oefeningen staan alvast klaar; pas ze aan of bewaar deze training.';
   $('record-workout').hidden = recorded || !workout.length;
-  $('workout-hint').textContent = recorded ? 'Elke wijziging wordt automatisch bewaard.' : 'Je laatste waarden staan klaar. Bewaar de training als je ze vandaag gebruikt.';
+  $('workout-hint').textContent = recorded ? 'Elke wijziging wordt automatisch bewaard.' : previous ? 'Je vorige oefeningen, gewichten en reps staan klaar. Alleen aanpassen wat verandert.' : 'Stel je oefeningen één keer in. De volgende keer staan ze klaar.';
 }
 function makeMetric(exercise, field) {
   const wrap = document.createElement('div');
@@ -274,15 +277,22 @@ $('update-button').addEventListener('click', async () => {
 window.addEventListener('beforeunload', event => { if (pending || failed || importing) { event.preventDefault(); event.returnValue = ''; } });
 window.addEventListener('pagehide', () => releaseEditor?.());
 window.addEventListener('pageshow', event => { if (event.persisted) location.reload(); });
-document.addEventListener('visibilitychange', () => {
+function handleNewDay() {
   if (document.visibilityState !== 'visible' || !loaded) return;
   const today = localDate();
   if (today !== knownToday) {
-    if (date === knownToday && !document.querySelector('dialog[open]')) date = today;
+    if (date === knownToday) {
+      if (document.querySelector('dialog[open]') || document.activeElement?.tagName === 'INPUT') return;
+      date = today;
+    }
     knownToday = today;
     render();
   }
-});
+}
+document.addEventListener('visibilitychange', handleNewDay);
+window.addEventListener('focus', handleNewDay);
+document.querySelectorAll('dialog').forEach(dialog => dialog.addEventListener('close', handleNewDay));
+setInterval(handleNewDay, 60000);
 
 async function prepareOffline() {
   if (!('serviceWorker' in navigator)) { $('offline-status').textContent = 'Offline gebruik niet beschikbaar'; return; }

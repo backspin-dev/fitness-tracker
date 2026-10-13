@@ -5,3 +5,4 @@
 @media(prefers-reduced-motion:no-preference){button{transition:background .15s,color .15s}.exercise-card{animation:arrive .2s ease-out}@keyframes arrive{from{opacity:.5;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}}
 
 .status-dot.status-error{background:var(--danger)}
+.source-note{color:var(--accent);font-size:11px;line-height:1.65;margin:-5px 0 18px;max-width:100%}

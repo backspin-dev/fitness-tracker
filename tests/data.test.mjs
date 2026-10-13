@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createState, validateState, getWorkout, commitWorkout, localDate, exportBackup, loadState, saveState } from '../data.js';
+import { createState, validateState, getWorkout, getPreviousWorkout, commitWorkout, localDate, exportBackup, loadState, saveState } from '../data.js';
 
 const exercise = (overrides = {}) => ({ id: 'exercise-1', name: 'Test exercise', weight: 20, reps: 12, ...overrides });
 
@@ -50,6 +50,72 @@ test('opening a date only returns an independent copy and creates no history', (
   assert.equal(state.sessions[`${localDate()}:legs`][0].name, 'Test exercise');
 });
 
+test('each split continues from its own latest earlier training across days', () => {
+  let state = createState();
+  state = commitWorkout(state, '2000-04-01', 'push', [exercise({ name: 'Press', weight: 25, reps: 10 })]);
+  state = commitWorkout(state, '2000-04-02', 'pull', [exercise({ name: 'Row', weight: 30, reps: 12 })]);
+  state = commitWorkout(state, '2000-04-03', 'legs', [exercise({ name: 'Squat', weight: 50, reps: 8 })]);
+  assert.deepEqual(getWorkout(state, '2000-04-04', 'push'), [exercise({ name: 'Press', weight: 25, reps: 10 })]);
+  assert.deepEqual(getWorkout(state, '2000-04-04', 'pull'), [exercise({ name: 'Row', weight: 30, reps: 12 })]);
+  assert.deepEqual(getWorkout(state, '2000-04-04', 'legs'), [exercise({ name: 'Squat', weight: 50, reps: 8 })]);
+
+  state = commitWorkout(state, '2000-04-04', 'push', [exercise({ name: 'Press', weight: 27.5, reps: 11 })]);
+  assert.deepEqual(getPreviousWorkout(state, '2000-04-07', 'push'), {
+    date: '2000-04-04', exercises: [exercise({ name: 'Press', weight: 27.5, reps: 11 })],
+  });
+  assert.equal(getWorkout(state, '2000-04-07', 'pull')[0].weight, 30);
+  assert.equal(getWorkout(state, '2000-04-07', 'legs')[0].weight, 50);
+});
+
+test('previous means the latest chronological date strictly before the target, not insertion order', () => {
+  let state = createState();
+  for (const [date, weight] of [['2000-06-10', 10], ['2000-06-15', 15], ['2000-06-01', 1], ['2000-06-12', 12]]) {
+    state = commitWorkout(state, date, 'push', [exercise({ weight })]);
+  }
+  assert.equal(getPreviousWorkout(state, '2000-06-20', 'push').date, '2000-06-15');
+  assert.equal(getPreviousWorkout(state, '2000-06-15', 'push').date, '2000-06-12');
+  assert.equal(getPreviousWorkout(state, '2000-06-11', 'push').date, '2000-06-10');
+  assert.equal(getWorkout(state, '2000-06-13', 'push')[0].weight, 12);
+  assert.equal(getPreviousWorkout(state, '2000-06-01', 'push'), null);
+  assert.equal(getPreviousWorkout(state, '2000-06-20', 'pull'), null);
+});
+
+test('an existing snapshot for today wins over the previous workout, including an empty snapshot', () => {
+  let state = commitWorkout(createState(), '2000-01-01', 'push', [exercise({ weight: 10 })]);
+  state = commitWorkout(state, localDate(), 'push', [exercise({ weight: 25 })]);
+  assert.equal(getWorkout(state, localDate(), 'push')[0].weight, 25);
+  assert.equal(getPreviousWorkout(state, localDate(), 'push').exercises[0].weight, 10);
+  state = commitWorkout(state, localDate(), 'push', []);
+  assert.deepEqual(getWorkout(state, localDate(), 'push'), []);
+});
+
+test('an intentionally empty previous workout takes precedence over older workouts and routine seeds', () => {
+  let state = createState();
+  state.routines.push = [exercise({ weight: 99 })];
+  state = commitWorkout(state, '2000-01-01', 'push', [exercise({ weight: 10 })]);
+  state = commitWorkout(state, '2000-01-02', 'push', []);
+  assert.deepEqual(getPreviousWorkout(state, '2000-01-03', 'push'), { date: '2000-01-02', exercises: [] });
+  assert.deepEqual(getWorkout(state, '2000-01-03', 'push'), []);
+  assert.equal(getWorkout(state, '1999-12-31', 'push')[0].weight, 99);
+});
+
+test('previous workout reads create no sessions and all returned exercises are independent copies', () => {
+  const state = commitWorkout(createState(), '2000-01-01', 'pull', [exercise({ weight: 25 })]);
+  const before = JSON.stringify(state);
+  const previous = getPreviousWorkout(state, '2000-01-03', 'pull');
+  previous.exercises[0].weight = 99;
+  previous.exercises.push(exercise({ id: 'new-exercise' }));
+  const nextWorkout = getWorkout(state, '2000-01-03', 'pull');
+  nextWorkout[0].reps = 8;
+  assert.equal(JSON.stringify(state), before);
+  assert.deepEqual(Object.keys(state.sessions), ['2000-01-01:pull']);
+  const next = commitWorkout(state, '2000-01-03', 'pull', nextWorkout);
+  assert.equal(next.sessions['2000-01-01:pull'][0].reps, 12);
+  assert.equal(next.sessions['2000-01-03:pull'][0].reps, 8);
+  nextWorkout[0].reps = 1;
+  assert.equal(next.sessions['2000-01-03:pull'][0].reps, 8);
+});
+
 test('validation rejects malformed backups and dangerous numeric values', () => {
   const invalidStates = [null, [], {}, { ...createState(), schemaVersion: 2 },
     { ...createState(), extra: 'unexpected' }, { ...createState(), routines: { push: [], pull: [] } },
@@ -65,6 +131,8 @@ test('validation rejects malformed backups and dangerous numeric values', () => 
   assert.throws(() => commitWorkout(createState(), localDate(), 'push', [exercise(), exercise()]), /unieke/);
   assert.throws(() => getWorkout(createState(), '2023-02-29', 'push'), /datum/);
   assert.throws(() => getWorkout(createState(), localDate(), 'other'), /Push/);
+  assert.throws(() => getPreviousWorkout(createState(), '2023-02-29', 'push'), /datum/);
+  assert.throws(() => getPreviousWorkout(createState(), localDate(), 'other'), /Push/);
 });
 
 test('valid fractional weights, leap dates, zero values and trimming survive validation', () => {

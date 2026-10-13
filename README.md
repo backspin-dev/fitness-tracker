@@ -4,6 +4,13 @@ Een klein Nederlands trainingslogboek voor je iPhone. Kies Push, Pull of Legs,
 voeg oefeningen toe en houd je gewicht en herhalingen bij. Wijzigingen worden
 automatisch op je eigen toestel opgeslagen.
 
+Bij een nieuwe trainingsdag staan automatisch de oefeningen, gewichten en reps
+van de **laatste eerdere training van hetzelfde onderdeel** klaar. Push, Pull
+en Legs onthouden ieder hun eigen training. Een aanpassing wordt vanzelf
+bewaard; gebruik **Deze training bewaren** als je dezelfde waarden opnieuw
+gebruikt. Een al opgeslagen dag houdt zijn eigen waarden en wordt niet
+overschreven door een latere training.
+
 ## Openen op je iPhone
 
 1. Open [Fitness](https://backspin-dev.github.io/fitness-tracker/) in Safari.
