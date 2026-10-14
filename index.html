@@ -60,7 +60,7 @@
       <label class="field-label" for="exercise-name">Naam van de oefening</label>
       <input id="exercise-name" class="text-input" maxlength="120" placeholder="Bijv. squat" autocomplete="off" required>
       <label class="field-label" for="exercise-weight">Gewicht (kg)</label><input id="exercise-weight" class="text-input" inputmode="decimal" value="0" required>
-      <div class="form-grid"><div><label class="field-label" for="exercise-sets">Sets</label><input id="exercise-sets" class="text-input" inputmode="numeric" value="1" maxlength="2" required></div><div><label class="field-label" for="exercise-reps">Reps per set</label><input id="exercise-reps" class="text-input" inputmode="numeric" value="0" maxlength="3" required></div></div>
+      <div class="form-grid"><div><label class="field-label" for="exercise-sets">Sets</label><input id="exercise-sets" class="text-input" inputmode="numeric" value="1" maxlength="2" required></div><div><label class="field-label" for="exercise-reps">Reps</label><input id="exercise-reps" class="text-input" inputmode="numeric" value="0" maxlength="3" required></div></div>
       <p id="exercise-error" class="field-error" role="alert" hidden></p>
       <button type="submit" class="primary full" id="save-exercise">Toevoegen</button>
       <button type="button" id="delete-exercise" class="danger full" hidden>Oefening verwijderen</button>
@@ -110,7 +110,7 @@
       <div class="summary-tile rep-total"><strong id="exercise-rep-total">0</strong><span id="exercise-rep-count">Totaal reps · 0 trainingen</span></div>
       <div class="metric-switch" role="group" aria-label="Grafiekwaarde"><button class="secondary" id="chart-weight" aria-pressed="true">Gewicht (kg)</button><button class="secondary" id="chart-reps" aria-pressed="false">Reps</button></div>
       <p id="exercise-summary" class="progress-summary"></p><div id="exercise-chart"></div>
-      <p class="chart-note">De grafiek toont gewicht of reps per set. Het totaal telt sets × reps op, één keer per opgeslagen trainingsdag voor dit onderdeel.</p>
+      <p class="chart-note">De grafiek toont gewicht of reps. Het totaal telt sets × reps op, één keer per opgeslagen trainingsdag voor dit onderdeel.</p>
       <details><summary>Laatste 20 metingen</summary><div id="exercise-measurements" class="table-scroll"></div></details>
     </section>
     <section id="progress-body" role="tabpanel" aria-labelledby="progress-tab-body" hidden>

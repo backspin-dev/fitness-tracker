@@ -106,7 +106,7 @@ function updateContext() {
 function makeMetric(exercise, field) {
   const wrap = document.createElement('div');
   wrap.className = `metric-${field}`;
-  const label = textNode('label', field === 'weight' ? 'GEWICHT · KG' : field === 'sets' ? 'SETS' : 'REPS / SET', 'metric-label');
+  const label = textNode('label', field === 'weight' ? 'GEWICHT · KG' : field === 'sets' ? 'SETS' : 'REPS', 'metric-label');
   const inputId = `value-${exercise.id}-${field}`;
   label.htmlFor = inputId;
   const stepper = document.createElement('div'); stepper.className = 'stepper';
@@ -228,7 +228,7 @@ $('exercise-form').addEventListener('submit', event => {
   const name = $('exercise-name').value.trim(), weight = parseValue($('exercise-weight').value, 'weight'), reps = parseValue($('exercise-reps').value, 'reps');
   const sets = parseValue($('exercise-sets').value, 'sets');
   if (!name || weight === null || reps === null || sets === null) {
-    $('exercise-error').textContent = 'Vul een naam, gewicht van 0–2.000 kg, 1–99 sets en 0–999 reps per set in.';
+    $('exercise-error').textContent = 'Vul een naam, gewicht van 0–2.000 kg, 1–99 sets en 0–999 reps in.';
     $('exercise-error').hidden = false; return;
   }
   const workout = getWorkout(state, date, split);
