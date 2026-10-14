@@ -6,6 +6,7 @@ import { setupRecovery } from './recovery-ui.js';
 import { setupLeaderboard } from './leaderboard-ui.js';
 import { setupExerciseNames } from './exercise-names-ui.js';
 import { setupNavigation } from './navigation.js';
+import { createExerciseVideo, stopExerciseVideos } from './exercise-video-ui.js';
 
 const $ = id => document.getElementById(id);
 function groupInfo(id = split) { return state.groups.find(group => group.id === id); }
@@ -172,7 +173,9 @@ function render() {
     top.append(textNode('span', String(index + 1).padStart(2, '0'), 'exercise-number'), textNode('h3', exercise.name, 'exercise-name'), edit);
     const metrics = document.createElement('div'); metrics.className = 'metrics';
     metrics.append(makeMetric(exercise, 'weight'), makeMetric(exercise, 'sets'), makeMetric(exercise, 'reps'));
-    card.append(top, metrics); return card;
+    card.append(top, metrics);
+    const video = createExerciseVideo(exercise); if (video) card.append(video);
+    return card;
   });
   $('exercise-list').replaceChildren(...cards);
   $('empty-state').hidden = !!workout.length;
@@ -366,6 +369,7 @@ const groups = setupGroups({ getState: () => state, canEdit: () => loaded && !im
 const progress = setupProgress({ getState: () => state, canEdit: () => loaded && !importing, changeState, confirmAction, toast, navigation });
 const leaderboard = setupLeaderboard({ getState: () => savedState, canEdit: () => loaded && !importing, toast, navigation });
 const exerciseNames = setupExerciseNames({ loadSuggestions: () => leaderboard.getExerciseSuggestions() });
+for (const page of ['statistieken', 'ranglijst', 'gegevens']) navigation.onOpen(page, () => stopExerciseVideos($('main')));
 const recovery = setupRecovery({ canEdit: () => ownsEditor && (loaded || recoverableLoadError) && !importing, canPreserveCurrent: () => loaded, confirmAction, toast, restoreState: async snapshot => {
   if (!ownsEditor || (!loaded && !recoverableLoadError) || importing || exporting) return false;
     importing = true; $('main').inert = true; $('settings-page').inert = true;

@@ -18,8 +18,12 @@ de app licht en de privacyregels hieronder intact.
   Anonieme sessies staan apart in lokale browseropslag en mogen nooit in logboekexports of lokale herstelkopieën komen.
 - Namen zijn niet uniek. Scores zijn zelf gerapporteerd. Beloof geen verificatie
   van prestaties of herstel van een oude ranglijstidentiteit op een ander toestel.
-- Geen analytics, trackers of externe lettertypen/resources toevoegen. Alleen
-  de ranglijstverbinding vormt een uitzondering op lokaal gebruik.
+- Geen eigen analytics, trackers of externe lettertypen/resources toevoegen.
+  De ranglijstverbinding en de expliciet geopende YouTube-uitlegvideo's vormen
+  uitzonderingen op lokaal gebruik. Laad een speler uitsluitend na openvouwen;
+  gebruik youtube-nocookie.com, geen autoplay of externe thumbnails. Stuur geen
+  logboekvelden naar de videodienst. Video's zijn online referenties en horen
+  nooit in IndexedDB, JSON-back-ups of de serviceworker-cache.
 - De openbare repository en app bevatten geen persoonlijke oefeningen,
   gewichten, screenshots, exports, sessietokens of andere trainingsgegevens.
 - Handmatige JSON-back-ups worden bewust geëxporteerd of geïmporteerd voor
@@ -83,6 +87,16 @@ de app licht en de privacyregels hieronder intact.
   Door gebruikers, na catalogussuggesties; promoveer ze niet automatisch naar
   geverifieerde oefeningen. Laad de openbare lijst zonder getypte zoektermen
   te versturen. Alleen reeds gedeelde namen mogen andere gebruikers bereiken.
+- `exercise-videos.js` en `exercise-video-ui.js`: gecontroleerde YouTube-referenties
+  voor bekende catalogusnamen en aliassen, uitklapbaar op de oefenkaart. Alleen
+  echte passende materiaal-/uitvoeringsvarianten koppelen. Geen video tonen bij
+  onbekende eigen namen; een handmatige ranglijstkoppeling is geen bewijs van de
+  uitvoering. Bewaar onderzoeksbronnen in `video-sources.json`. Ontbrekende goede
+  video's blijven ontbrekend; vul geen fictieve IDs of verkeerde varianten in.
+  Toon Bron met een directe YouTube-link. Verwijder de iframe bij dichtklappen
+  en het verlaten van Training. De iframe geeft alleen de app-origin door via
+  strict-origin-when-cross-origin; dat is nodig om YouTube-fout 153 te vermijden.
+  Beloof geen advertentievrije, offline of blijvend beschikbare YouTube-video's.
 - `data.js`: gegevensmodel, migratie, opslag en JSON-validatie. Schemaversie 4
   bevat `groups`, `routines`, `sessions`, `bodyWeights` en de optionele `ui`.
   Oefeningen bevatten `id`, `name`, `weight`, `reps`, `sets` (heel getal 1–99)

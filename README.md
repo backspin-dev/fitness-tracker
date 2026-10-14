@@ -52,6 +52,31 @@ De telling gaat over **opgeslagen trainingen**, niet over afgevinkte of afgerond
 trainingen. Eén oefening heeft één gewicht, aantal sets en aantal reps per set
 voor die trainingsdag. De app registreert geen verschillende waarden per losse set.
 
+## Uitlegvideo's
+
+Bij bekende oefeningen met een passende video staat **Uitlegvideo** onder de
+sets en reps. Open dit om de YouTube-speler te laden. Onder de video staat
+**Bron** met een directe link naar dezelfde video op YouTube. Dichtklappen of
+naar een andere pagina gaan stopt de speler. Een oefening zonder gecontroleerde
+match krijgt geen videoknop; eigen oefennamen blijven altijd mogelijk.
+
+Alle 150 catalogusoefeningen hebben momenteel een referentie (147 unieke video's).
+Titels, makers en uitvoeringsvarianten zijn gecontroleerd aan de hand van openbare
+bronpagina's en videometadata; niet alle video's zijn volledig visueel bekeken.
+De broncontrole staat in `video-sources.json`. De koppeling gebruikt de bekende
+oefennaam en aliassen, geen gok op basis van gewicht of een ranglijstcorrectie.
+Een machine, dumbbell en barbell blijven verschillende uitvoeringen.
+
+Video's hebben internet nodig en worden niet in het logboek, back-ups of de
+appcache opgeslagen. Voor openvouwen worden geen thumbnails, spelers of
+YouTube-scripts geladen. De speler gebruikt YouTube's
+[privacy-enhanced mode](https://support.google.com/youtube/answer/171780), zonder
+autoplay. Na openen ontvangt YouTube een normaal webverzoek, waaronder IP-adres,
+video-ID en app-origin; geen naam, trainingsdatum, lichaamsgewicht, kilo's, sets
+of reps uit het logboek. YouTube kan advertenties tonen of een video later
+verwijderen/blokkeren. De bronlink blijft ook beschikbaar wanneer insluiten
+niet werkt. Het logboek zelf blijft offline bruikbaar.
+
 ## Openen op je iPhone
 
 1. Open [Fitness](https://backspin-dev.github.io/fitness-tracker/) in Safari.
@@ -108,9 +133,10 @@ het opslaggebruik hangt af van je geschiedenis en de opslag van iOS.
   ander toestel opent, krijgt zijn eigen lege logboek.
 - Iemand met toegang tot je ontgrendelde telefoon kan je logboek openen.
   De app heeft geen extra wachtwoord of eigen versleuteling.
-- Er zijn geen trackers, analytics, advertenties of externe lettertypen.
+- De app heeft geen eigen analytics, advertenties of externe lettertypen.
   GitHub levert de openbare appbestanden en ontvangt normale webverzoeken;
-  je trainingsinvoer zit daar niet in.
+  je trainingsinvoer zit daar niet in. Alleen een geopende uitlegvideo maakt
+  daarnaast verbinding met YouTube, zoals hierboven beschreven.
 
 De gezamenlijke ranglijst gebruikt **Supabase** en geldt **per oefening**. Kies
 een oefening in de ranglijst om de totale herhalingen van deelnemers te zien.
