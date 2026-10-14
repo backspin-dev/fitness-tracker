@@ -347,7 +347,7 @@ const groups = setupGroups({ getState: () => state, canEdit: () => loaded && !im
 const progress = setupProgress({ getState: () => state, canEdit: () => loaded && !importing, changeState, confirmAction, toast, navigation });
 const leaderboard = setupLeaderboard({ getState: () => savedState, canEdit: () => loaded && !importing, toast, navigation });
 const exerciseNames = setupExerciseNames({ loadSuggestions: () => leaderboard.getExerciseSuggestions() });
-workoutOrder = setupExerciseOrder({ list: $('exercise-list'), canEdit: () => loaded && !importing, onMove: moveExercise, announce: toast });
+workoutOrder = setupExerciseOrder({ list: $('exercise-list'), canEdit: () => loaded && !importing, onMove: moveExercise, announce: () => {} });
 for (const page of ['statistieken', 'ranglijst', 'gegevens']) navigation.onOpen(page, () => {
   workoutOrder.cancel(); stopExerciseVideos($('main'));
 });
