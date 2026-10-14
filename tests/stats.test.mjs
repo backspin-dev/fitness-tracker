@@ -2,13 +2,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { commitWorkout, getWorkout } from '../data.js';
 import {
-  listExerciseSeries, exerciseRepSummary, bodyWeightSeries, trainingSummary, weeklyTrainingCounts,
+  listExerciseSeries, exerciseSetSummary, exerciseRepSummary, bodyWeightSeries, trainingSummary, weeklyTrainingCounts,
   latestWorkoutComparison, renderLineChart, renderBarChart,
 } from '../stats.js';
 
 const exercise = (overrides = {}) => ({ id: 'lift-1', name: 'Example lift', weight: 20, reps: 10, sets: 1, ...overrides });
 const state = (overrides = {}) => ({
-  schemaVersion: 3,
+  schemaVersion: 5,
   groups: [
     { id: 'push', name: 'Push', description: '', archived: false },
     { id: 'old-pull', name: 'Old pull', description: '', archived: true },
@@ -39,11 +39,13 @@ test('exercise series use stable IDs across renames and never merge equal names 
   assert.equal(result.length, 3);
   assert.deepEqual(result.find(item => item.key === 'push:lift-1'), {
     key: 'push:lift-1', name: 'Renamed lift', groupName: 'Push', points: [
-      { date: '2024-03-01', weight: 20, reps: 10, sets: 1 }, { date: '2024-03-09', weight: 25, reps: 10, sets: 3 },
+      { date: '2024-03-01', weight: 20, reps: 10, sets: 1, setDetails: [{ weight: 20, reps: 10 }], totalReps: 10, volume: 200 },
+      { date: '2024-03-09', weight: 25, reps: 10, sets: 3, setDetails: [{ weight: 25, reps: 10 }, { weight: 25, reps: 10 }, { weight: 25, reps: 10 }], totalReps: 30, volume: 750 },
     ],
   });
   assert.equal(result.find(item => item.key === 'old-pull:lift-1').groupName, 'Old pull');
   result[0].points[0].weight = 999;
+  result[0].points[0].setDetails[0].reps = 999;
   assert.equal(JSON.stringify(input), before);
 });
 
@@ -60,6 +62,52 @@ test('rep totals multiply sets and handle legacy data, zero reps and future entr
   assert.equal(JSON.stringify(points), before);
   assert.throws(() => exerciseRepSummary([], '2023-02-29'), /datum/);
   assert.throws(() => exerciseRepSummary(points, '2 april 2024'), /datum/);
+});
+
+test('different sets retain every value and use one real heaviest set for both chart metrics', () => {
+  const input = exercise({ weight: 20, reps: 12, sets: 4,
+    setValues: [null, { weight: 30, reps: 5 }, { weight: 30, reps: 8 }, { reps: 0 }] });
+  const before = JSON.stringify(input);
+  const result = exerciseSetSummary(input);
+  assert.deepEqual(result, {
+    weight: 30, reps: 8, sets: 4,
+    setDetails: [{ weight: 20, reps: 12 }, { weight: 30, reps: 5 }, { weight: 30, reps: 8 }, { weight: 20, reps: 0 }],
+    totalReps: 25, volume: 630,
+  });
+  assert.notEqual(result.reps, 12, 'The most reps from a lighter set must not become reps at 30 kg.');
+  result.setDetails[1].weight = 999;
+  assert.equal(JSON.stringify(input), before);
+  assert.deepEqual(exerciseSetSummary(exercise({ weight: 0, reps: 0, sets: 2, setValues: [null, { reps: 5 }] })), {
+    weight: 0, reps: 5, sets: 2, setDetails: [{ weight: 0, reps: 0 }, { weight: 0, reps: 5 }], totalReps: 5, volume: 0,
+  });
+});
+
+test('individual set reps and volume survive saved edits, prefilling and future filtering', () => {
+  const original = state();
+  const workout = [exercise({ reps: 12, sets: 3, setValues: [null, { weight: 25, reps: 8 }, { reps: 0 }] })];
+  const first = commitWorkout(original, '2024-04-01', 'push', workout);
+  const second = commitWorkout(first, '2024-04-02', 'push', [exercise({ weight: 30, reps: 10, sets: 2, setValues: [null, { reps: 7 }] })]);
+  const edited = commitWorkout(second, '2024-04-02', 'push', [exercise({ weight: 30, reps: 10, sets: 2, setValues: [null, { reps: 9 }] })]);
+  const future = commitWorkout(edited, '2024-04-03', 'push', [exercise({ reps: 999, sets: 99 })]);
+  const points = listExerciseSeries(future)[0].points;
+  assert.deepEqual(exerciseRepSummary(points, '2024-04-02'), { totalReps: 39, trainingCount: 2 });
+  assert.deepEqual(points.slice(0, 2).map(point => point.volume), [440, 570]);
+  assert.deepEqual(getWorkout(first, '2024-04-02', 'push'), workout);
+  assert.equal(second.sessions['2024-04-02:push'][0].setValues[1].reps, 7);
+  assert.equal(original.sessions['2024-04-01:push'], undefined);
+});
+
+test('comparison uses heaviest-set changes alongside total reps across varying sets', () => {
+  const input = state({ sessions: {
+    '2024-04-01:push': [exercise({ weight: 20, reps: 12, sets: 3, setValues: [null, { weight: 30, reps: 8 }, { reps: 10 }] })],
+    '2024-04-02:push': [exercise({ name: 'Renamed', weight: 25, reps: 15, sets: 2, setValues: [null, { weight: 35, reps: 6 }] })],
+  } });
+  const before = JSON.stringify(input), row = latestWorkoutComparison(input, 'push', '2024-04-02').rows[0];
+  assert.equal(row.name, 'Renamed');
+  assert.deepEqual([row.weight, row.reps, row.totalReps, row.volume], [35, 6, 21, 585]);
+  assert.deepEqual([row.weightDelta, row.repsDelta, row.setsDelta, row.totalRepsDelta, row.volumeDelta], [5, -2, -1, -9, -95]);
+  row.setDetails[0].reps = 0;
+  assert.equal(JSON.stringify(input), before);
 });
 
 test('rep totals follow exercise identity after renaming and keep equal names and other groups separate', () => {
@@ -171,8 +219,11 @@ test('comparison finds the latest two nonempty workouts, matches IDs after renam
   } });
   assert.deepEqual(latestWorkoutComparison(input, 'old-pull', '2024-04-11'), {
     date: '2024-04-10', previousDate: '2024-04-07', rows: [
-      { name: 'New name', weight: 20.3, reps: 8, sets: 3, weightDelta: 0.2, repsDelta: -2, setsDelta: -1 },
-      { name: 'Example lift', weight: 5, reps: 10, sets: 2, weightDelta: null, repsDelta: null, setsDelta: null },
+      { name: 'New name', weight: 20.3, reps: 8, sets: 3,
+        setDetails: [{ weight: 20.3, reps: 8 }, { weight: 20.3, reps: 8 }, { weight: 20.3, reps: 8 }], totalReps: 24, volume: 487.2,
+        weightDelta: 0.2, repsDelta: -2, setsDelta: -1, totalRepsDelta: -16, volumeDelta: -316.8 },
+      { name: 'Example lift', weight: 5, reps: 10, sets: 2, setDetails: [{ weight: 5, reps: 10 }, { weight: 5, reps: 10 }], totalReps: 20, volume: 100,
+        weightDelta: null, repsDelta: null, setsDelta: null, totalRepsDelta: null, volumeDelta: null },
     ],
   });
   const single = latestWorkoutComparison(input, 'push', '2024-04-11');

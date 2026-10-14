@@ -1,5 +1,6 @@
 // Na het opgeven van een naam worden alleen alias, ranglijstoefeningen en samengevoegde reps gedeeld.
 import { EXERCISE_CATALOG, normalizeExerciseName, resolveRankingExercise } from './exercise-catalog.js';
+import { getExerciseSets } from './data.js';
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export function normalizeDisplayName(value) {
@@ -15,6 +16,11 @@ function score(value) {
   return value;
 }
 
+function exerciseReps(exercise) {
+  // Oude berekeningen konden alleen reps bevatten; gewicht beïnvloedt deze score nooit.
+  return getExerciseSets({ weight: 0, ...exercise }).reduce((total, set) => total + set.reps, 0);
+}
+
 export function totalSavedReps(state, today) {
   const date = new Date(`${today}T00:00:00Z`);
   if (typeof today !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(today) || !Number.isFinite(date.getTime()) || date.toISOString().slice(0, 10) !== today) {
@@ -25,11 +31,7 @@ export function totalSavedReps(state, today) {
     const match = /^(\d{4}-\d{2}-\d{2}):[^:]+$/.exec(key);
     if (!match || match[1] > today || !Array.isArray(exercises)) continue;
     for (const exercise of exercises) {
-      const sets = exercise.sets ?? 1;
-      if (!Number.isInteger(exercise.reps) || exercise.reps < 0 || exercise.reps > 999 || !Number.isInteger(sets) || sets < 1 || sets > 99) {
-        throw new Error('Deze training bevat ongeldige sets of reps.');
-      }
-      total += sets * exercise.reps;
+      total += exerciseReps(exercise);
     }
   }
   return score(total);
@@ -48,7 +50,7 @@ export function aggregateExerciseScores(state, today) {
     for (const [index, exercise] of exercises.entries()) {
       const { key: exerciseKey, label } = resolveRankingExercise(latest.get(identity(key, exercise, index)));
       const item = totals.get(exerciseKey) ?? { exercise_key: exerciseKey, exercise_name: label, total_reps: 0 };
-      item.total_reps = score(item.total_reps + (exercise.sets ?? 1) * exercise.reps);
+      item.total_reps = score(item.total_reps + exerciseReps(exercise));
       totals.set(exerciseKey, item);
     }
   }
@@ -150,7 +152,10 @@ export function createLeaderboardClient({ url, anonKey, fetchImpl = globalThis.f
       let data = null;
       try { if (text) data = JSON.parse(text); } catch { /* Een proxyfout kan HTML bevatten. */ }
       if (!response.ok) {
-        const error = new Error(response.status === 429 ? 'Even te veel verzoeken. Probeer de ranglijst later opnieuw.' : 'De ranglijst is nu niet bereikbaar. Probeer later opnieuw.');
+        const message = response.status === 403 && data?.code === 'PT403' ?
+          'Deelname aan de ranglijst is geblokkeerd. Je trainingen blijven lokaal beschikbaar.' :
+          response.status === 429 ? 'Even te veel verzoeken. Probeer de ranglijst later opnieuw.' : 'De ranglijst is nu niet bereikbaar. Probeer later opnieuw.';
+        const error = new Error(message);
         error.status = response.status;
         throw error;
       }

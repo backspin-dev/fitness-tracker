@@ -2,7 +2,7 @@
 
 Trainingen, wegingen en herstelkopieën blijven lokaal. Iedereen geeft bij het
 eerste gebruik één naam op en ziet daarbij dat de naam, ranglijstoefeningen en
-het totaal sets × reps per oefening openbaar zijn. Daarna worden de oefenscores
+de som van de reps uit alle losse sets per oefening openbaar zijn. Daarna worden de oefenscores
 automatisch bijgewerkt. Individuele trainingsdatums, gewichten, sets, reps per training,
 lichaamsgewicht en het volledige logboek worden nooit verstuurd.
 
@@ -148,3 +148,18 @@ controleert dat server en client exact dezelfde sleutels, labels en aliassen
 hebben en geen alias verschillende oefeningen verbindt. Bij een uitbreiding
 worden voorheen vrije namen die nu bekend zijn bij de volgende appopening/sync
 naar hun canonieke oefenranglijst verplaatst; het lokale logboek blijft intact.
+
+## Beheeruitsluiting
+
+`moderation.sql` voegt een private RLS-tabel en schrijftoetsen toe voor beide
+ranglijsttabellen. Een eigenaar kan daarin het bestaande anonieme UUID van een
+deelnemer blokkeren en diens scores op `active=false` zetten. Die scores en
+bijbehorende oefensuggesties verdwijnen voor publieke clients; beheer kan de
+uitsluiting herstellen. Het lokale logboek op een ander toestel wordt niet
+aangeraakt.
+
+Triggers verhinderen opnieuw zichtbaar maken via RPC, oude clients of directe
+REST-writes. PT403 meldt veilig dat deelname geblokkeerd is en vervangt geen
+sessie of identiteit. Zet echte deelnemersnamen, UUIDs of beheerqueries nooit
+in deze openbare repository. Een volledig nieuwe anonieme identiteit kan
+zonder gebruikerslogin niet aan dezelfde persoon gekoppeld worden.

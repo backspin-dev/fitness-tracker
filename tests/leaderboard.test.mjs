@@ -56,6 +56,31 @@ test('exercise scores merge known aliases across groups and IDs while retaining 
   assert.equal(JSON.stringify(input), before);
 });
 
+test('exercise scores sum each actual set and keep private set values out of the public payload', async () => {
+  const input = { routines: { legs: [{ name: 'Squat', reps: 999, sets: 99 }] }, sessions: {
+    '2026-10-01:legs': [{ id: 'a', name: 'Squat', weight: 20, reps: 12, sets: 3, setValues: [null, { weight: 25, reps: 8 }, { reps: 0 }] }],
+    '2026-10-02:full': [{ id: 'b', name: 'Squats', weight: 30, reps: 10, sets: 2, setValues: [null, { reps: 7 }] }, { id: 'c', name: 'Bench press', reps: 12, sets: 3 }],
+    '2026-10-03:legs': [{ id: 'a', name: 'Squat', weight: 100, reps: 999, sets: 99 }],
+  } };
+  const before = JSON.stringify(input), scores = aggregateExerciseScores(input, '2026-10-02');
+  assert.deepEqual(scores, [
+    { exercise_key: 'ex:bench-press', exercise_name: 'Bench press', total_reps: 36 },
+    { exercise_key: 'ex:squat', exercise_name: 'Squat', total_reps: 37 },
+  ]);
+  assert.equal(totalSavedReps(input, '2026-10-02'), 73);
+  assert.equal(JSON.stringify(input), before);
+  const { client, calls } = fixture([reply(identity()), reply(null)]);
+  await client.join('Example', scores);
+  assert.deepEqual(JSON.parse(calls[1].body), { p_display_name: 'Example', p_scores: scores });
+  for (const privateField of ['setValues', 'weight', 'sessions', '2026-10-01', 'id']) assert(!Object.hasOwn(JSON.parse(calls[1].body).p_scores[1], privateField));
+  input.sessions['2026-10-02:full'][0].setValues[1].reps = 9;
+  assert.equal(totalSavedReps(input, '2026-10-02'), 75, 'Editing a set replaces its reps rather than adding another training.');
+  for (const invalid of [{ reps: 1000 }, { reps: -1 }, { reps: 1.5 }]) {
+    input.sessions['2026-10-02:full'][0].setValues[1] = invalid;
+    assert.throws(() => aggregateExerciseScores(input, '2026-10-02'), /reps/);
+  }
+});
+
 test('the latest saved identity mapping classifies its full history without affecting another group', () => {
   const input = { sessions: {
     '2026-10-01:legs': [{ id: 'a', name: 'My old squat label', reps: 10, sets: 3 }],
@@ -179,7 +204,7 @@ test('legacy API profiles can be hidden without publishing exercise names', asyn
 
 test('submission payload contains only alias and per-exercise aggregates, never private record fields', async () => {
   const { client, calls } = fixture([reply(identity()), reply(null)]);
-  await client.join('Example', [{ ...S(36)[0], date: '2026-10-01', weight: 99, sets: 3, bodyWeights: { private: 80 }, id: 'local-private-id' }]);
+  await client.join('Example', [{ ...S(36)[0], date: '2026-10-01', weight: 99, sets: 3, setValues: [null, { weight: 100, reps: 8 }], bodyWeights: { private: 80 }, id: 'local-private-id' }]);
   const body = JSON.parse(calls[1].body);
   assert.deepEqual(body, { p_display_name: 'Example', p_scores: S(36) });
   assert(!calls[1].body.includes('private'));
@@ -372,6 +397,23 @@ test('storage failures stop participation before signup and HTTP errors expose n
   await assert.rejects(invalid.client.getScores('ex:squat'), /ongeldig/);
 });
 
+test('a moderation block has a safe fixed message and preserves the same local player identity', async () => {
+  const blocked = () => reply({ code: 'PT403', message: 'private backend reason', details: 'sensitive details' }, 403);
+  const { client, calls, storage } = fixture([reply(identity()), reply(null), blocked(), blocked()]);
+  await client.join('Example', S(36));
+  const previous = JSON.parse([...storage.values.values()][0]);
+  const expected = 'Deelname aan de ranglijst is geblokkeerd. Je trainingen blijven lokaal beschikbaar.';
+  await assert.rejects(client.sync(S(42)), error => error.message === expected && error.status === 403);
+  const after = JSON.parse([...storage.values.values()][0]);
+  assert.deepEqual(after, previous);
+  assert.equal(client.isJoined(), true);
+  assert.equal(client.requiresRejoin(), false);
+  await assert.rejects(client.join('Changed name', S(42)), error => error.message === expected);
+  assert.equal(calls.filter(call => call.url.endsWith('/signup')).length, 1);
+  assert.equal(calls.at(-1).headers.Authorization, 'Bearer access-1');
+  assert.deepEqual(JSON.parse([...storage.values.values()][0]).session, previous.session);
+});
+
 test('public names render as safe text, never HTML', () => {
   class Element {
     constructor(tag, ownerDocument) { this.tag = tag; this.ownerDocument = ownerDocument; this.children = []; this.textContent = ''; }
@@ -486,10 +528,15 @@ test('statistics renders on its own route and refreshes only while that page is 
     assert.equal(ids.get('exercise-rep-total').textContent, 'untouched');
     navigation.open('statistieken'); assert.equal(ids.get('exercise-rep-total').textContent, '0');
     assert.match(ids.get('body-date').value, /^\d{4}-\d{2}-\d{2}$/);
-    state.sessions['2000-01-01:push'] = [{ id: 'example', name: 'Squat', sets: 3, reps: 12, weight: 25 }];
-    progress.refresh(); assert.equal(ids.get('exercise-rep-total').textContent, '36');
+    state.sessions['2000-01-01:push'] = [{ id: 'example', name: 'Squat', sets: 3, reps: 12, weight: 25, setValues: [null, { weight: 30, reps: 8 }, { reps: 10 }] }];
+    progress.refresh(); assert.equal(ids.get('exercise-rep-total').textContent, '30');
+    assert.match(ids.get('exercise-summary').textContent, /30 kg in je zwaarste set/);
+    const table = ids.get('exercise-measurements').children[0], row = table.children[1].children[0];
+    assert.deepEqual(row.children[1].children[0].children.map(item => item.textContent), ['1: 12 reps · 25 kg', '2: 8 reps · 30 kg', '3: 10 reps · 25 kg']);
+    assert.equal(row.children[2].textContent, '30');
+    ids.get('chart-reps').onclick(); assert.match(ids.get('exercise-summary').textContent, /8 reps bij je zwaarste set/);
     navigation.open('training'); state.sessions = {}; progress.refresh();
-    assert.equal(ids.get('exercise-rep-total').textContent, '36');
+    assert.equal(ids.get('exercise-rep-total').textContent, '30');
     navigation.open('statistieken'); assert.equal(ids.get('exercise-rep-total').textContent, '0');
     assert.equal(ids.get('progress-button').onclick, undefined);
     assert.equal(ids.has('progress-dialog'), false);

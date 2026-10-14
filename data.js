@@ -109,13 +109,109 @@ function dictionary(value, label) {
   }
 }
 
-function exercises(value, allowLegacy = false) {
+function exerciseWeight(value) {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0 || value > 2000) {
+    invalid('gewicht moet een getal tussen 0 en 2.000 kg zijn.');
+  }
+  return value;
+}
+
+function exerciseReps(value) {
+  if (typeof value !== 'number' || !Number.isInteger(value) || value < 0 || value > 999) {
+    invalid('reps moet een heel getal tussen 0 en 999 zijn.');
+  }
+  return value;
+}
+
+function setCount(value) {
+  if (typeof value !== 'number' || !Number.isInteger(value) || value < 1 || value > 99) {
+    invalid('sets moet een heel getal tussen 1 en 99 zijn.');
+  }
+  return value;
+}
+
+function setRows(value) {
+  if (!Array.isArray(value) || value.length < 1 || value.length > 99) {
+    invalid('gebruik 1 tot 99 sets per oefening.');
+  }
+  return Array.from(value, row => {
+    record(row, 'een set', ['weight', 'reps']);
+    return { weight: exerciseWeight(row.weight), reps: exerciseReps(row.reps) };
+  });
+}
+
+// Opgeslagen gelijke sets blijven compact. Alleen afwijkingen kosten extra ruimte.
+// Elke aanroeper krijgt onafhankelijke, volledige setrijen voor invoer/berekeningen.
+export function getExerciseSets(exercise) {
+  dictionary(exercise, 'een oefening');
+  const weight = exerciseWeight(exercise.weight), reps = exerciseReps(exercise.reps);
+  const count = setCount(Object.hasOwn(exercise, 'sets') ? exercise.sets : 1);
+  let values = [];
+  if (Object.hasOwn(exercise, 'setValues')) {
+    values = exercise.setValues;
+    if (!Array.isArray(values) || values.length > count) invalid('setwaarden moeten bij het aantal sets passen.');
+    for (const value of values) {
+      if (value === null) continue;
+      record(value, 'afwijkende setwaarden', ['weight', 'reps'], []);
+      if (!Object.keys(value).length) invalid('afwijkende setwaarden mogen niet leeg zijn.');
+      if (Object.hasOwn(value, 'weight')) exerciseWeight(value.weight);
+      if (Object.hasOwn(value, 'reps')) exerciseReps(value.reps);
+    }
+  }
+  return Array.from({ length: count }, (_, index) => ({
+    weight: values[index]?.weight ?? weight, reps: values[index]?.reps ?? reps,
+  }));
+}
+
+function compactSets(rows) {
+  const result = { weight: rows[0].weight, reps: rows[0].reps, sets: rows.length };
+  const values = rows.map(row => {
+    const value = {};
+    if (row.weight !== result.weight) value.weight = row.weight;
+    if (row.reps !== result.reps) value.reps = row.reps;
+    return Object.keys(value).length ? value : null;
+  });
+  while (values.length && values.at(-1) === null) values.pop();
+  if (values.length) result.setValues = values;
+  return result;
+}
+
+export function setExerciseSets(exercise, values) {
+  dictionary(exercise, 'een oefening');
+  const { weight, reps, sets, setValues, ...metadata } = exercise;
+  return exercises([{ ...metadata, ...compactSets(setRows(values)) }])[0];
+}
+
+export function setExerciseSet(exercise, index, value) {
+  const rows = getExerciseSets(exercise);
+  if (!Number.isInteger(index) || index < 0 || index >= rows.length) invalid('kies een bestaande set.');
+  record(value, 'de setwijziging', ['weight', 'reps'], []);
+  if (!Object.keys(value).length) invalid('de setwijziging mag niet leeg zijn.');
+  rows[index] = { ...rows[index], ...value };
+  return setExerciseSets(exercise, rows);
+}
+
+export function addExerciseSet(exercise) {
+  const rows = getExerciseSets(exercise);
+  rows.push({ ...rows.at(-1) });
+  return setExerciseSets(exercise, rows);
+}
+
+export function removeExerciseSet(exercise, index) {
+  const rows = getExerciseSets(exercise);
+  if (rows.length === 1) invalid('houd minstens één set per oefening.');
+  if (!Number.isInteger(index) || index < 0 || index >= rows.length) invalid('kies een bestaande set.');
+  rows.splice(index, 1);
+  return setExerciseSets(exercise, rows);
+}
+
+function exercises(value, allowLegacy = false, allowSetValues = true, oneLegacySet = false) {
   if (!Array.isArray(value) || value.length > MAX_WORKOUT_EXERCISES) {
     invalid(`een training mag maximaal ${MAX_WORKOUT_EXERCISES} oefeningen bevatten.`);
   }
   const seen = new Set();
   return value.map(item => {
-    record(item, 'een oefening', ['id', 'name', 'weight', 'reps', 'sets', 'rankingKey'],
+    record(item, 'een oefening', ['id', 'name', 'weight', 'reps', 'sets', 'rankingKey', ...(allowSetValues ? ['setValues'] : [])],
       allowLegacy ? ['id', 'name', 'weight', 'reps'] : ['id', 'name', 'weight', 'reps', 'sets']);
     if (typeof item.id !== 'string' || !/^[a-zA-Z0-9_-]{1,100}$/.test(item.id) || seen.has(item.id)) {
       invalid('elke oefening moet een unieke, geldige id hebben.');
@@ -124,17 +220,12 @@ function exercises(value, allowLegacy = false) {
     if (typeof item.name !== 'string' || !item.name.trim() || item.name.length > 120) {
       invalid('een oefening moet een naam van 1 tot 120 tekens hebben.');
     }
-    if (typeof item.weight !== 'number' || !Number.isFinite(item.weight) || item.weight < 0 || item.weight > 2000) {
-      invalid('gewicht moet een getal tussen 0 en 2.000 kg zijn.');
-    }
-    if (typeof item.reps !== 'number' || !Number.isInteger(item.reps) || item.reps < 0 || item.reps > 999) {
-      invalid('reps moet een heel getal tussen 0 en 999 zijn.');
-    }
-    const sets = allowLegacy && !Object.hasOwn(item, 'sets') ? 1 : item.sets;
-    if (typeof sets !== 'number' || !Number.isInteger(sets) || sets < 1 || sets > 99) {
-      invalid('sets moet een heel getal tussen 1 en 99 zijn.');
-    }
-    const result = { id: item.id, name: item.name.trim(), weight: item.weight, reps: item.reps, sets };
+    const weight = exerciseWeight(item.weight), reps = exerciseReps(item.reps);
+    const suppliedSets = setCount(allowLegacy && !Object.hasOwn(item, 'sets') ? 1 : item.sets);
+    // Versies 1/2 telden iedere oefening maar eenmaal, ook bij een los oud setsveld.
+    const sets = oneLegacySet ? 1 : suppliedSets;
+    const details = Object.hasOwn(item, 'setValues') ? compactSets(getExerciseSets({ ...item, sets })) : { weight, reps, sets };
+    const result = { id: item.id, name: item.name.trim(), ...details };
     if (Object.hasOwn(item, 'rankingKey')) {
       if (typeof item.rankingKey !== 'string' || !RANKING_KEYS.has(item.rankingKey)) {
         invalid('kies een bekende ranglijstoefening of gebruik de automatische naamkoppeling.');
@@ -152,7 +243,7 @@ export function localDate(date = new Date()) {
 
 export function createState() {
   return {
-    schemaVersion: 4,
+    schemaVersion: 5,
     groups: SPLITS.map(id => ({ ...GROUP_DEFAULTS[id] })),
     routines: { push: [], pull: [], legs: [] },
     sessions: {},
@@ -165,7 +256,7 @@ export function validateState(input) {
   dictionary(input, 'de back-up');
   const legacy = input.schemaVersion === 1;
   const legacySets = [1, 2].includes(input.schemaVersion);
-  if (![1, 2, 3, 4].includes(input.schemaVersion)) invalid('deze back-upversie wordt niet ondersteund.');
+  if (![1, 2, 3, 4, 5].includes(input.schemaVersion)) invalid('deze back-upversie wordt niet ondersteund.');
   const fields = legacy ? ['schemaVersion', 'routines', 'sessions'] :
     ['schemaVersion', 'groups', 'routines', 'sessions', 'bodyWeights'];
   record(input, 'de back-up', [...fields, 'ui'], fields);
@@ -176,10 +267,10 @@ export function validateState(input) {
   dictionary(input.sessions, 'de trainingsgeschiedenis');
   const entries = Object.entries(input.sessions);
   if (entries.length > MAX_SESSIONS) invalid('de back-up bevat te veel trainingen.');
-  const result = { schemaVersion: 4, groups: migratedGroups, routines: {}, sessions: {}, bodyWeights: {} };
+  const result = { schemaVersion: 5, groups: migratedGroups, routines: {}, sessions: {}, bodyWeights: {} };
   let count = 0;
   for (const split of ids) {
-    result.routines[split] = exercises(input.routines[split], legacySets);
+    result.routines[split] = exercises(input.routines[split], legacySets, input.schemaVersion >= 5, legacySets);
     count += result.routines[split].length;
   }
   for (const [key, value] of entries) {
@@ -187,7 +278,7 @@ export function validateState(input) {
     if (!match) invalid('de trainingsgeschiedenis bevat een ongeldige sleutel.');
     dateKey(match[1]);
     splitKey(match[2], result);
-    result.sessions[key] = exercises(value, legacySets);
+    result.sessions[key] = exercises(value, legacySets, input.schemaVersion >= 5, legacySets);
     count += result.sessions[key].length;
     if (count > MAX_TOTAL_EXERCISES) invalid('de back-up bevat te veel oefeningen.');
   }
@@ -222,16 +313,28 @@ export function getPreviousWorkout(state, date, split) {
   if (previousDate === null) return null;
   return {
     date: previousDate,
-    exercises: exercises(state.sessions[`${previousDate}:${split}`], state.schemaVersion < 3),
+    exercises: exercises(state.sessions[`${previousDate}:${split}`], state.schemaVersion < 3, state.schemaVersion >= 5, state.schemaVersion < 3),
   };
 }
 
 export function getWorkout(state, date, split) {
   const key = `${dateKey(date)}:${splitKey(split, state)}`;
-  if (Object.hasOwn(state.sessions, key)) return exercises(state.sessions[key], state.schemaVersion < 3);
+  if (Object.hasOwn(state.sessions, key)) return exercises(state.sessions[key], state.schemaVersion < 3, state.schemaVersion >= 5, state.schemaVersion < 3);
   const previous = getPreviousWorkout(state, date, split);
   // Een bewust leeggemaakte vorige training blijft leeg.
-  return previous ? previous.exercises : exercises(state.routines[split], state.schemaVersion < 3);
+  return previous ? previous.exercises : exercises(state.routines[split], state.schemaVersion < 3, state.schemaVersion >= 5, state.schemaVersion < 3);
+}
+
+// Verplaatsen verandert alleen de volgorde van deze training, nooit de lokale IDs.
+// De bestaande commitWorkout bewaart dit voor de gekozen dag en vorige trainingen.
+export function reorderWorkout(workout, exerciseId, targetIndex) {
+  const next = exercises(workout, true);
+  const source = next.findIndex(exercise => exercise.id === exerciseId);
+  if (source < 0) invalid('kies een bestaande oefening.');
+  if (!Number.isInteger(targetIndex) || targetIndex < 0 || targetIndex >= next.length) invalid('kies een bestaande positie.');
+  const [exercise] = next.splice(source, 1);
+  next.splice(targetIndex, 0, exercise);
+  return next;
 }
 
 export function commitWorkout(state, date, split, workout) {

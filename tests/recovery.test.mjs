@@ -4,6 +4,7 @@ import { MAX_RECOVERY_BACKUPS, cleanRecoveryEntries, updateRecoveryEntries } fro
 import {
   createState, commitWorkout, validateState, saveState, loadState,
   ensureRecoveryBackup, listRecoveryBackups, loadRecoveryBackup, exportBackup,
+  getExerciseSets, setExerciseSet,
 } from '../data.js';
 
 const trained = reps => commitWorkout(createState(), '2000-01-01', 'push', [
@@ -75,6 +76,23 @@ test('invalid recovery metadata and individual corrupt states are dropped withou
   assert.deepEqual(cleanRecoveryEntries(raw, validateState), [good]);
   assert.equal(update(raw, trained(10), '2026-10-02').length, 2);
   assert.equal(update({ broken: true }, trained(10), '2026-10-02').length, 1);
+});
+
+test('changes to an individual set create an independent recovery copy even when the baseline is unchanged', () => {
+  const first = trained(8);
+  const changedWorkout = [setExerciseSet(first.sessions['2000-01-01:push'][0], 1, { weight: 25, reps: 6 })];
+  const changed = commitWorkout(first, '2000-01-01', 'push', changedWorkout);
+  assert.equal(changed.sessions['2000-01-01:push'][0].weight, first.sessions['2000-01-01:push'][0].weight);
+  assert.equal(changed.sessions['2000-01-01:push'][0].reps, first.sessions['2000-01-01:push'][0].reps);
+  let copies = update([], first, '2026-10-01');
+  copies = update(copies, changed, '2026-10-02');
+  assert.equal(copies.length, 2);
+  assert.deepEqual(getExerciseSets(copies[0].state.sessions['2000-01-01:push'][0]),
+    [{ weight: 20, reps: 8 }, { weight: 25, reps: 6 }, { weight: 20, reps: 8 }]);
+  assert.ok(getExerciseSets(copies[1].state.sessions['2000-01-01:push'][0]).every(row => row.weight === 20 && row.reps === 8));
+  copies[0].state.sessions['2000-01-01:push'][0].setValues[1].weight = 99;
+  assert.equal(getExerciseSets(changed.sessions['2000-01-01:push'][0])[1].weight, 25);
+  assert.deepEqual(validateState(JSON.parse(exportBackup(changed))), changed);
 });
 
 // Klein transactioneel IndexedDB-model: writes zijn pas zichtbaar na oncomplete.
@@ -184,6 +202,38 @@ test('saving current state and recovery is atomic; recovery failures reject and 
     storage.saved.set('current', { corrupt: true });
     await saveState(trained(14), { protectCurrent: 'restore' });
     assert.equal((await loadState()).sessions['2000-01-01:push'][0].reps, 14);
+  } finally {
+    if (original === undefined) delete globalThis.indexedDB;
+    else globalThis.indexedDB = original;
+  }
+});
+
+test('individual sets survive local storage and protected legacy recovery; a current write failure rolls back the new copy', async () => {
+  const original = globalThis.indexedDB;
+  const storage = fakeIndexedDB(); globalThis.indexedDB = storage;
+  try {
+    const legacy = trained(8); legacy.schemaVersion = 4;
+    storage.saved.set('current', structuredClone(legacy));
+    const migrated = await loadState();
+    assert.equal(migrated.schemaVersion, 5);
+    const current = commitWorkout(migrated, '2000-01-01', 'push', [
+      setExerciseSet(migrated.sessions['2000-01-01:push'][0], 2, { weight: 30, reps: 5 }),
+    ]);
+    await saveState(current, { protectCurrent: 'import' });
+    assert.deepEqual(await loadState(), current);
+    const copies = await listRecoveryBackups();
+    const previous = await loadRecoveryBackup(copies.find(copy => copy.reason === 'import').id);
+    assert.equal(previous.schemaVersion, 5);
+    assert.ok(getExerciseSets(previous.sessions['2000-01-01:push'][0]).every(row => row.weight === 20 && row.reps === 8));
+    const currentCopy = await loadRecoveryBackup(copies.find(copy => copy.reason === 'daily').id);
+    assert.deepEqual(getExerciseSets(currentCopy.sessions['2000-01-01:push'][0]),
+      [{ weight: 20, reps: 8 }, { weight: 20, reps: 8 }, { weight: 30, reps: 5 }]);
+    const before = structuredClone(storage.saved);
+    storage.failNextPut('current');
+    await assert.rejects(saveState(migrated, { protectCurrent: 'restore' }), /QuotaExceededError/);
+    assert.deepEqual(storage.saved, before);
+    assert.deepEqual(await loadState(), current);
+    assert.deepEqual(validateState(JSON.parse(exportBackup(currentCopy))), current);
   } finally {
     if (original === undefined) delete globalThis.indexedDB;
     else globalThis.indexedDB = original;

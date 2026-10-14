@@ -44,6 +44,7 @@
         <p class="source-note" id="source-note" hidden></p>
         <p class="history-note" id="history-note" hidden></p>
         <div id="exercise-list"></div>
+        <p id="exercise-order-help" class="visually-hidden">Versleep het handvat om oefeningen te verplaatsen. Tik op het handvat of het menu voor de knoppen Omhoog en Omlaag.</p>
         <div class="empty-state" id="empty-state" hidden>
           <div class="empty-icon"><svg viewBox="0 0 48 48" aria-hidden="true"><path d="M16 24h16M10 17v14m6-19v24m16-24v24m6-19v14M7 24h3m28 0h3"/></svg></div>
           <h3>Jouw eerste oefening</h3><p>Voeg een oefening toe.<br>Daarna hoef je alleen je cijfers bij te werken.</p>
@@ -66,7 +67,7 @@
       <div class="summary-tile rep-total"><strong id="exercise-rep-total">0</strong><span id="exercise-rep-count">Totaal reps · 0 trainingen</span></div>
       <div class="metric-switch" role="group" aria-label="Grafiekwaarde"><button class="secondary" id="chart-weight" aria-pressed="true">Gewicht (kg)</button><button class="secondary" id="chart-reps" aria-pressed="false">Reps</button></div>
       <p id="exercise-summary" class="progress-summary"></p><div id="exercise-chart"></div>
-      <p class="chart-note">De grafiek toont gewicht of reps. Het totaal telt sets × reps op, één keer per opgeslagen trainingsdag voor dit onderdeel.</p>
+      <p class="chart-note">Grafiek: zwaarste set (bij gelijk gewicht meeste reps). Totaal reps telt alle sets.</p>
       <details><summary>Laatste 20 metingen</summary><div id="exercise-measurements" class="table-scroll"></div></details>
     </section>
     <section id="progress-body" role="tabpanel" aria-labelledby="progress-tab-body" hidden>
@@ -96,7 +97,7 @@
     <p id="backup-message" class="settings-copy" role="status"></p>
     <details><summary>Op je iPhone gebruiken</summary><p>Open deze pagina in Safari. Kies Deel → Zet op beginscherm → Open als webapp. Voer je trainingen vervolgens via dat icoon in.</p><p>De opslag in Safari en de geïnstalleerde webapp kan verschillen. Gebruik steeds hetzelfde icoon.</p></details>
     <details><summary>Privacy & opslag</summary><p>Je volledige trainingen, gewichten en lichaamsgewicht blijven lokaal. Je gekozen naam, ranglijstoefeningen en totale reps per oefening zijn openbaar. Eigen oefennamen kunnen ook als suggestie verschijnen bij andere gebruikers. Een JSON deel of bewaar je zelf. De app heeft geen eigen analytics of advertenties. Een geopende uitlegvideo maakt verbinding met YouTube; YouTube kan advertenties tonen. GitHub kan je IP-adres registreren bij het laden van de app.</p><p>Wie je ontgrendelde toestel gebruikt, kan de tracker openen. De automatische kopieën zitten in dezelfde appopslag; bij wissen daarvan verdwijnen ze ook. Voor een nieuw toestel gebruik je de JSON-export.</p><p id="storage-info">De app vraagt waar mogelijk om blijvende opslag.</p></details>
-    <div class="settings-bottom"><span id="offline-status">Offline gebruik voorbereiden…</span><span>v1.8</span></div>
+    <div class="settings-bottom"><span id="offline-status">Offline gebruik voorbereiden…</span><span>v1.9</span></div>
   </section>
     </main>
     <footer class="status-footer"><span id="save-status" role="status" aria-live="polite"><span class="status-dot"></span>Even laden…</span><button id="update-button" class="text-button" hidden>Update klaar</button></footer>
@@ -111,8 +112,8 @@
       <p id="exercise-name-help" class="exercise-name-help">Kies een suggestie of typ je eigen naam.</p>
       <span id="exercise-suggestion-status" class="visually-hidden" role="status" aria-live="polite"></span>
       <details id="exercise-ranking-options" class="ranking-options" hidden><summary id="exercise-ranking-summary">Naam in de ranglijst</summary><p>Je eigen oefennaam blijft staan. Je kunt hieronder kiezen bij welke oefening je reps meetellen.</p><label class="field-label" for="exercise-ranking">Oefening in ranglijst</label><select id="exercise-ranking" class="text-input"></select></details>
-      <label class="field-label" for="exercise-weight">Gewicht (kg)</label><input id="exercise-weight" class="text-input" inputmode="decimal" value="0" required>
-      <div class="form-grid"><div><label class="field-label" for="exercise-sets">Sets</label><input id="exercise-sets" class="text-input" inputmode="numeric" value="1" maxlength="2" required></div><div><label class="field-label" for="exercise-reps">Reps</label><input id="exercise-reps" class="text-input" inputmode="numeric" value="0" maxlength="3" required></div></div>
+      <div id="exercise-initial-set"><p class="first-set-label">SET 1</p><div class="form-grid"><div><label class="field-label" for="exercise-weight">Gewicht (kg)</label><input id="exercise-weight" class="text-input" inputmode="decimal" value="0" maxlength="7" required></div><div><label class="field-label" for="exercise-reps">Reps</label><input id="exercise-reps" class="text-input" inputmode="numeric" value="0" maxlength="3" required></div></div></div>
+      <div id="exercise-order-actions" class="exercise-order-actions" hidden><button type="button" class="secondary" id="move-exercise-up">↑ Omhoog</button><button type="button" class="secondary" id="move-exercise-down">↓ Omlaag</button></div>
       <p id="exercise-error" class="field-error" role="alert" hidden></p>
       <button type="submit" class="primary full" id="save-exercise">Toevoegen</button>
       <button type="button" id="delete-exercise" class="danger full" hidden>Oefening verwijderen</button>

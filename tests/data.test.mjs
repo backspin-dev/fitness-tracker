@@ -3,14 +3,15 @@ import assert from 'node:assert/strict';
 import {
   createState, validateState, getWorkout, getPreviousWorkout, commitWorkout, localDate,
   exportBackup, loadState, saveState, applyPreset, addGroup, renameGroup, setGroupArchived,
-  setBodyWeight, deleteBodyWeight, setExerciseRanking,
+  setBodyWeight, deleteBodyWeight, setExerciseRanking, getExerciseSets, setExerciseSets, setExerciseSet,
+  addExerciseSet, removeExerciseSet, reorderWorkout,
 } from '../data.js';
 
 const exercise = (overrides = {}) => ({ id: 'exercise-1', name: 'Test exercise', weight: 20, reps: 12, sets: 1, ...overrides });
 
 test('new data is empty and export/import roundtrips independently', () => {
   const state = createState();
-  assert.equal(state.schemaVersion, 4);
+  assert.equal(state.schemaVersion, 5);
   assert.deepEqual(state.groups.map(group => [group.id, group.archived]), [['push', false], ['pull', false], ['legs', false]]);
   assert.deepEqual(state.routines, { push: [], pull: [], legs: [] });
   assert.deepEqual(state.sessions, {});
@@ -37,7 +38,7 @@ test('version 1 migrates all routines, history, ids and UI without changing its 
   const legacy = legacyState();
   const before = JSON.stringify(legacy);
   const migrated = validateState(legacy);
-  assert.equal(migrated.schemaVersion, 4);
+  assert.equal(migrated.schemaVersion, 5);
   assert.deepEqual(migrated.routines, Object.fromEntries(Object.entries(legacy.routines).map(([id, list]) => [id, list.map(item => ({ ...item, sets: 1 }))])));
   assert.deepEqual(migrated.sessions, Object.fromEntries(Object.entries(legacy.sessions).map(([id, list]) => [id, list.map(item => ({ ...item, sets: 1 }))])));
   assert.deepEqual(migrated.ui, legacy.ui);
@@ -58,7 +59,7 @@ test('legacy data supports reads and upgrades on the next immutable edit', () =>
   assert.equal(getWorkout(legacy, '2000-01-04', 'push')[0].weight, 30);
   assert.equal(getPreviousWorkout(legacy, '2000-01-04', 'push').date, '2000-01-03');
   const edited = commitWorkout(legacy, '2000-01-04', 'push', [exercise({ weight: 35 })]);
-  assert.equal(edited.schemaVersion, 4);
+  assert.equal(edited.schemaVersion, 5);
   assert.equal(edited.sessions['2000-01-04:push'][0].weight, 35);
   assert.equal(legacy.sessions['2000-01-04:push'], undefined);
   assert.throws(() => validateState({ ...legacy, bodyWeights: {} }), /onbekende velden/);
@@ -169,7 +170,7 @@ test('previous workout reads create no sessions and all returned exercises are i
 });
 
 test('validation rejects malformed backups and dangerous numeric values', () => {
-  const invalidStates = [null, [], {}, { ...createState(), schemaVersion: 5 },
+  const invalidStates = [null, [], {}, { ...createState(), schemaVersion: 6 },
     { ...createState(), extra: 'unexpected' }, { ...createState(), routines: { push: [], pull: [] } },
     { ...createState(), sessions: [] }, { ...createState(), ui: { date: '2024-02-30', split: 'push' } },
     { ...createState(), sessions: { '2024-02-30:push': [] } },
@@ -323,7 +324,7 @@ test('body-weight measurements roundtrip independently of exercise weights and s
   const switched = applyPreset(corrected, 'full');
   const restored = validateState(JSON.parse(exportBackup(switched)));
   assert.deepEqual(restored.bodyWeights, corrected.bodyWeights);
-  assert.equal(restored.schemaVersion, 4);
+  assert.equal(restored.schemaVersion, 5);
   const removed = deleteBodyWeight(restored, '2000-01-01');
   assert.deepEqual(removed.bodyWeights, { '2000-01-02': 77.9 });
   assert.deepEqual(deleteBodyWeight(removed, '2000-01-01'), removed);
@@ -383,7 +384,7 @@ test('version 2 migrates sets while preserving custom groups and body-weight his
   source.bodyWeights['2000-01-01'] = 75;
   const before = JSON.stringify(source);
   const next = validateState(source);
-  assert.equal(next.schemaVersion, 4);
+  assert.equal(next.schemaVersion, 5);
   assert.equal(next.routines.custom[0].sets, 1);
   assert.equal(next.sessions['2000-01-01:custom'][0].sets, 1);
   assert.deepEqual(next.groups, source.groups);
@@ -428,12 +429,12 @@ test('near-5 MiB version-2 backups migrate and export without sets crossing the 
 });
 
 
-test('version 3 migrates to version 4 without changing sets or exercise identities', () => {
+test('version 3 migrates to version 5 without changing sets or exercise identities', () => {
   const source = commitWorkout(createState(), '2000-01-01', 'push', [exercise({ sets: 4, reps: 8 })]);
   source.schemaVersion = 3;
   const before = JSON.stringify(source);
   const next = validateState(source);
-  assert.equal(next.schemaVersion, 4);
+  assert.equal(next.schemaVersion, 5);
   assert.deepEqual(next.sessions, source.sessions);
   assert.equal(next.sessions['2000-01-01:push'][0].sets, 4);
   assert.equal(JSON.stringify(source), before);
@@ -502,8 +503,144 @@ test('near-6 MiB version-3 backups migrate without adding unused ranking metadat
   assert.ok(oldBytes < 6 * 1024 * 1024);
   assert.ok(oldBytes > 5.9 * 1024 * 1024);
   const migrated = validateState(source);
-  assert.equal(migrated.schemaVersion, 4);
+  assert.equal(migrated.schemaVersion, 5);
   assert.equal(new TextEncoder().encode(exportBackup(migrated)).byteLength, oldBytes);
   assert.equal(Object.hasOwn(migrated.sessions['2000-01-01:push'][0], 'rankingKey'), false);
   assert.deepEqual(validateState(JSON.parse(exportBackup(migrated))), migrated);
+});
+
+test('different set weights and reps persist independently through prior training and backup roundtrips', () => {
+  const rows = [{ weight: 20, reps: 12 }, { weight: 25, reps: 10 }, { weight: 30, reps: 8 }];
+  const varied = setExerciseSets(exercise({ rankingKey: 'ex:bench-press' }), rows);
+  assert.deepEqual(varied, exercise({ weight: 20, reps: 12, sets: 3,
+    rankingKey: 'ex:bench-press', setValues: [null, { weight: 25, reps: 10 }, { weight: 30, reps: 8 }] }));
+  assert.deepEqual(getExerciseSets(varied), rows);
+  const first = commitWorkout(createState(), '2000-01-01', 'push', [varied]);
+  const prepared = getWorkout(first, '2000-01-02', 'push');
+  prepared[0].setValues[1].weight = 27.5;
+  const second = commitWorkout(first, '2000-01-02', 'push', prepared);
+  assert.deepEqual(getExerciseSets(first.sessions['2000-01-01:push'][0]), rows);
+  assert.deepEqual(getExerciseSets(getPreviousWorkout(second, '2000-01-03', 'push').exercises[0]),
+    [rows[0], { weight: 27.5, reps: 10 }, rows[2]]);
+  assert.deepEqual(validateState(JSON.parse(exportBackup(second))), second);
+  assert.equal(getExerciseSets(first.sessions['2000-01-01:push'][0]).reduce((sum, row) => sum + row.reps, 0), 30);
+  assert.equal(rows[1].weight, 25);
+});
+
+test('set helpers copy the last row, keep at least one set, and compact equal rows without changing identities', () => {
+  const source = exercise({ weight: 10, reps: 12, sets: 3, rankingKey: 'ex:squat' });
+  const varied = setExerciseSet(source, 1, { weight: 15 });
+  assert.deepEqual(varied.setValues, [null, { weight: 15 }]);
+  assert.deepEqual(getExerciseSets(varied), [{ weight: 10, reps: 12 }, { weight: 15, reps: 12 }, { weight: 10, reps: 12 }]);
+  const firstChanged = setExerciseSet(varied, 0, { reps: 8 });
+  assert.deepEqual(getExerciseSets(firstChanged), [{ weight: 10, reps: 8 }, { weight: 15, reps: 12 }, { weight: 10, reps: 12 }]);
+  const added = addExerciseSet(setExerciseSets(source, [{ weight: 15, reps: 8 }, { weight: 20, reps: 6 }]));
+  assert.deepEqual(getExerciseSets(added), [{ weight: 15, reps: 8 }, { weight: 20, reps: 6 }, { weight: 20, reps: 6 }]);
+  const removed = removeExerciseSet(added, 0);
+  assert.deepEqual(removed, exercise({ weight: 20, reps: 6, sets: 2, rankingKey: 'ex:squat' }));
+  assert.equal(Object.hasOwn(removed, 'setValues'), false);
+  assert.deepEqual(source, exercise({ weight: 10, reps: 12, sets: 3, rankingKey: 'ex:squat' }));
+  assert.equal(firstChanged.id, source.id);
+  assert.equal(firstChanged.name, source.name);
+  assert.equal(firstChanged.rankingKey, source.rankingKey);
+  const fresh = getExerciseSets(added); fresh[0].weight = 999;
+  assert.equal(getExerciseSets(added)[0].weight, 15);
+  assert.throws(() => removeExerciseSet(exercise(), 0), /minstens/);
+  assert.throws(() => addExerciseSet(exercise({ sets: 99 })), /1 tot 99/);
+  for (const index of [-1, 3, 1.5, '1', NaN]) {
+    assert.throws(() => setExerciseSet(source, index, { reps: 1 }), /bestaande set/);
+    assert.throws(() => removeExerciseSet(source, index), /bestaande set/);
+  }
+});
+
+test('schema 5 rejects invalid set details and canonicalizes redundant baseline overrides', () => {
+  for (const setValues of [undefined, null, {}, 'sets', [null, null], [{}], [undefined],
+    [{ extra: 1 }], [{ weight: null }], [{ weight: NaN }], [{ weight: -1 }], [{ weight: 2001 }],
+    [{ reps: null }], [{ reps: 1.5 }], [{ reps: 1000 }], [{ reps: Infinity }]]) {
+    assert.throws(() => commitWorkout(createState(), '2000-01-01', 'push', [exercise({ setValues })]), /Ongeldige/);
+  }
+  for (const rows of [[], Array(1), [{ weight: 20 }], [{ weight: 20, reps: 12, extra: 1 }],
+    [{ weight: 20, reps: NaN }], Array.from({ length: 100 }, () => ({ weight: 1, reps: 1 }))]) {
+    assert.throws(() => setExerciseSets(exercise(), rows), /Ongeldige/);
+  }
+  const raw = createState();
+  raw.routines.push = [exercise({ sets: 3, setValues: [null, { weight: 20, reps: 12 }, null] })];
+  assert.deepEqual(validateState(raw).routines.push, [exercise({ sets: 3 })]);
+  raw.routines.push = [exercise({ sets: 2, setValues: [{ weight: 25 }, null] })];
+  const normalized = validateState(raw).routines.push[0];
+  assert.deepEqual(normalized, exercise({ weight: 25, sets: 2, setValues: [null, { weight: 20 }] }));
+  assert.deepEqual(getExerciseSets(normalized), [{ weight: 25, reps: 12 }, { weight: 20, reps: 12 }]);
+  for (const schemaVersion of [1, 2, 3, 4]) {
+    const legacy = schemaVersion === 1 ? legacyState() : createState();
+    legacy.schemaVersion = schemaVersion;
+    legacy.routines.push = [exercise({ setValues: [null] })];
+    assert.throws(() => validateState(legacy), /onbekende velden/);
+  }
+});
+
+test('all legacy versions retain set totals while migration leaves old identical sets compact', () => {
+  for (const schemaVersion of [1, 2, 3, 4]) {
+    const source = schemaVersion === 1 ? legacyState() : createState();
+    source.schemaVersion = schemaVersion;
+    const item = schemaVersion < 3 ? legacyExercise({ weight: 22.5, reps: 8 }) : exercise({ weight: 22.5, reps: 8, sets: 99 });
+    source.routines.push = [item];
+    source.sessions['2000-01-01:push'] = [item];
+    const before = JSON.stringify(source);
+    const next = validateState(source);
+    const rows = getExerciseSets(next.routines.push[0]);
+    assert.equal(next.schemaVersion, 5);
+    assert.equal(rows.length, schemaVersion < 3 ? 1 : 99);
+    assert.equal(rows.reduce((total, row) => total + row.reps, 0), (schemaVersion < 3 ? 1 : 99) * 8);
+    assert.ok(rows.every(row => row.weight === 22.5 && row.reps === 8));
+    assert.equal(Object.hasOwn(next.routines.push[0], 'setValues'), false);
+    assert.equal(next.routines.push[0].id, item.id);
+    assert.equal(JSON.stringify(source), before);
+  }
+  for (const schemaVersion of [1, 2]) {
+    const source = schemaVersion === 1 ? legacyState() : createState();
+    source.schemaVersion = schemaVersion;
+    source.routines.push = [exercise({ sets: 99 })];
+    const next = validateState(source);
+    assert.equal(next.routines.push[0].sets, 1);
+    assert.equal(getWorkout(source, '1999-01-01', 'push')[0].sets, 1);
+    assert.deepEqual(getExerciseSets(next.routines.push[0]), [{ weight: 20, reps: 12 }]);
+  }
+});
+
+test('near-7 MiB version-4 backups with 99 sets migrate and export at the same byte size', () => {
+  const source = createState(); source.schemaVersion = 4;
+  const workout = Array.from({ length: 200 }, (_, i) => exercise({ id: `ex-${i}`, name: 'x'.repeat(120), sets: 99 }));
+  const bytes = value => new TextEncoder().encode(JSON.stringify(value)).byteLength;
+  const perSessionBytes = bytes(workout) + 21;
+  const sessionCount = Math.floor((7 * 1024 * 1024 - 1024) / perSessionBytes);
+  for (let i = 0; i < sessionCount; i++) {
+    const date = new Date(Date.UTC(2000, 0, i + 1)).toISOString().slice(0, 10);
+    source.sessions[`${date}:push`] = workout;
+  }
+  const oldBytes = bytes(source);
+  assert.ok(oldBytes > 6.9 * 1024 * 1024 && oldBytes < 7 * 1024 * 1024);
+  const next = validateState(source);
+  assert.equal(new TextEncoder().encode(exportBackup(next)).byteLength, oldBytes);
+  assert.equal(next.sessions['2000-01-01:push'][0].sets, 99);
+  assert.equal(Object.hasOwn(next.sessions['2000-01-01:push'][0], 'setValues'), false);
+  assert.deepEqual(validateState(JSON.parse(exportBackup(next))), next);
+});
+
+test('reordering preserves exercise identities, sets and earlier days and prefills the next day in the new order', () => {
+  const workout = [exercise({ id: 'a' }), setExerciseSets(exercise({ id: 'b', rankingKey: 'ex:squat' }),
+    [{ weight: 20, reps: 12 }, { weight: 25, reps: 8 }]), exercise({ id: 'c' })];
+  const first = commitWorkout(createState(), '2000-01-01', 'push', workout);
+  const reordered = reorderWorkout(getWorkout(first, '2000-01-02', 'push'), 'c', 0);
+  assert.deepEqual(reordered.map(row => row.id), ['c', 'a', 'b']);
+  const second = commitWorkout(first, '2000-01-02', 'push', reordered);
+  assert.deepEqual(first.sessions['2000-01-01:push'].map(row => row.id), ['a', 'b', 'c']);
+  assert.deepEqual(getWorkout(second, '2000-01-03', 'push').map(row => row.id), ['c', 'a', 'b']);
+  assert.deepEqual(getExerciseSets(reordered[2]), getExerciseSets(workout[1]));
+  reordered[2].setValues[1].weight = 999;
+  assert.equal(getExerciseSets(second.sessions['2000-01-02:push'][2])[1].weight, 25);
+  assert.equal(getExerciseSets(workout[1])[1].weight, 25);
+  assert.deepEqual(validateState(JSON.parse(exportBackup(second))), second);
+  assert.deepEqual(reorderWorkout(workout, 'a', 0), workout);
+  for (const index of [-1, 3, 0.5, '1', NaN]) assert.throws(() => reorderWorkout(workout, 'a', index), /bestaande positie/);
+  assert.throws(() => reorderWorkout(workout, 'missing', 0), /bestaande oefening/);
 });

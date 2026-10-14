@@ -14,12 +14,25 @@ export function setupProgress({ getState, canEdit, changeState, confirmAction, t
     if (className) el.className = className; return el;
   }
   function delta(value, unit) { return `${value > 0 ? '+' : ''}${number(value)} ${unit}`; }
+  function setList(sets) {
+    const list = node('div', '');
+    sets.forEach((set, index) => list.append(node('div', `${index + 1}: ${number(set.reps)} reps · ${number(set.weight)} kg`)));
+    return list;
+  }
   function table(container, headings, rows) {
     const table = document.createElement('table'); table.className = 'measurement-table';
     const head = document.createElement('thead'), tr = document.createElement('tr');
     for (const label of headings) { const th = node('th', label); th.scope = 'col'; tr.append(th); }
     head.append(tr); const body = document.createElement('tbody');
-    for (const values of rows) { const row = document.createElement('tr'); values.forEach(value => row.append(node('td', value))); body.append(row); }
+    for (const values of rows) {
+      const row = document.createElement('tr');
+      for (const value of values) {
+        const cell = node('td', '');
+        if (typeof value === 'object') cell.append(value); else cell.textContent = value;
+        row.append(cell);
+      }
+      body.append(row);
+    }
     table.append(head, body); container.replaceChildren(rows.length ? table : node('p', 'Nog geen metingen.', 'chart-note'));
   }
   function renderExercise() {
@@ -34,9 +47,9 @@ export function setupProgress({ getState, canEdit, changeState, confirmAction, t
     $('exercise-rep-total').textContent = number(reps.totalReps);
     $('exercise-rep-count').textContent = `Totaal reps · ${number(reps.trainingCount)} ${reps.trainingCount === 1 ? 'training' : 'trainingen'}`;
     const unit = metric === 'weight' ? 'kg' : 'reps', first = points[0], last = points.at(-1);
-    $('exercise-summary').textContent = last ? `${number(last[metric])} ${unit} op ${prettyDate(last.date)}${points.length > 1 ? ` · ${delta(Math.round((last[metric] - first[metric]) * 100) / 100, unit)} sinds je eerste meting` : ' · je eerste meting'}` : 'Bewaar een training om je voortgang te zien.';
-    renderLineChart($('exercise-chart'), points.map(point => ({ date: point.date, value: point[metric] })), { label: `${current?.name || 'Oefening'}: ${metric === 'weight' ? 'gewicht' : 'reps'}`, unit });
-    table($('exercise-measurements'), ['Datum', 'Kg', 'Reps', 'Sets'], points.slice(-20).reverse().map(point => [prettyDate(point.date), number(point.weight), number(point.reps), number(point.sets)]));
+    $('exercise-summary').textContent = last ? `${number(last[metric])} ${unit} ${metric === 'weight' ? 'in' : 'bij'} je zwaarste set op ${prettyDate(last.date)}${points.length > 1 ? ` · ${delta(Math.round((last[metric] - first[metric]) * 100) / 100, unit)} sinds je eerste meting` : ' · je eerste meting'}` : 'Bewaar een training om je voortgang te zien.';
+    renderLineChart($('exercise-chart'), points.map(point => ({ date: point.date, value: point[metric] })), { label: `${current?.name || 'Oefening'}: ${metric === 'weight' ? 'gewicht van' : 'reps bij'} zwaarste set`, unit });
+    table($('exercise-measurements'), ['Datum', 'Sets', 'Totaal reps'], points.slice(-20).reverse().map(point => [prettyDate(point.date), setList(point.setDetails), number(point.totalReps)]));
   }
   function renderBody() {
     const points = bodyWeightSeries(getState()).filter(point => point.date <= localDate()), first = points[0], last = points.at(-1);
@@ -76,8 +89,9 @@ export function setupProgress({ getState, canEdit, changeState, confirmAction, t
     const note = node('p', comparison.previousDate ? `Verschil met ${prettyDate(comparison.previousDate)}.` : 'Na je volgende training zie je hier de verschillen.', 'chart-note');
     const rows = comparison.rows.map(item => {
       const row = node('div', '', 'comparison-row');
-      row.append(node('strong', item.name), node('span', `${number(item.sets)} ${item.sets === 1 ? 'set' : 'sets'} × ${number(item.reps)} reps · ${number(item.weight)} kg`));
-      row.append(node('small', item.weightDelta === null ? 'Nog geen eerdere meting' : `${delta(item.weightDelta, 'kg')} · ${delta(item.repsDelta, 'reps')} · ${delta(item.setsDelta, 'sets')}`));
+      row.append(node('strong', item.name), node('span', `${number(item.totalReps)} reps totaal`));
+      const details = node('small', ''); details.append(setList(item.setDetails)); row.append(details);
+      row.append(node('small', item.weightDelta === null ? 'Nog geen eerdere meting' : `Zwaarste set: ${delta(item.weightDelta, 'kg')} · ${delta(item.repsDelta, 'reps')}. Totaal: ${delta(item.totalRepsDelta, 'reps')} · ${delta(item.setsDelta, 'sets')}.`));
       return row;
     });
     $('training-comparison').replaceChildren(heading, note, ...rows);

@@ -1,4 +1,5 @@
 // Alleen afgeleid van opgeslagen lokale gegevens; geen netwerk en geen schattingen.
+import { getExerciseSets } from './data.js';
 const DAY = 86400000;
 const SVG_NS = 'http://www.w3.org/2000/svg';
 const number = new Intl.NumberFormat('nl-NL', { maximumFractionDigits: 2 });
@@ -30,6 +31,21 @@ function savedWorkouts(state, groupId = null) {
   }).sort((a, b) => a.date.localeCompare(b.date) || a.groupId.localeCompare(b.groupId));
 }
 
+/** Gewicht en reps horen bij dezelfde echte set; alle sets blijven beschikbaar. */
+export function exerciseSetSummary(exercise) {
+  const setDetails = getExerciseSets(exercise);
+  const best = setDetails.reduce((selected, set) =>
+    set.weight > selected.weight || (set.weight === selected.weight && set.reps > selected.reps) ? set : selected);
+  return {
+    weight: best.weight,
+    reps: best.reps,
+    sets: setDetails.length,
+    setDetails,
+    totalReps: setDetails.reduce((total, set) => total + set.reps, 0),
+    volume: Number(setDetails.reduce((total, set) => total + set.weight * set.reps, 0).toFixed(8)),
+  };
+}
+
 /** Series volgen stabiele oefening- én groeps-ID's, ook na een naamswijziging. */
 export function listExerciseSeries(state) {
   const groups = new Map((state.groups ?? []).map((group, index) => [group.id, { ...group, index }]));
@@ -47,7 +63,7 @@ export function listExerciseSeries(state) {
       }
       const item = series.get(key);
       item.name = exercise.name;
-      item.points.push({ date: workout.date, weight: exercise.weight, reps: exercise.reps, sets: exercise.sets ?? 1 });
+      item.points.push({ date: workout.date, ...exerciseSetSummary(exercise) });
     }
   }
   return [...series.values()].sort((a, b) => {
@@ -58,12 +74,13 @@ export function listExerciseSeries(state) {
   });
 }
 
-/** Tel sets × reps van één oefening t/m vandaag, één momentopname per training. */
+/** Tel alle losse reps van één oefening t/m vandaag, één momentopname per training. */
 export function exerciseRepSummary(points, today) {
   calendarDay(today);
   return points.reduce((summary, point) => {
     if (point.date <= today) {
-      summary.totalReps += (point.sets ?? 1) * point.reps;
+      const sets = point.setDetails ?? getExerciseSets(point);
+      summary.totalReps += sets.reduce((total, set) => total + set.reps, 0);
       summary.trainingCount++;
     }
     return summary;
@@ -120,14 +137,15 @@ export function latestWorkoutComparison(state, groupId, today) {
     previousDate: previous?.date ?? null,
     rows: latest.exercises.map(exercise => {
       const old = previousExercises.get(exercise.id);
+      const current = exerciseSetSummary(exercise), prior = old ? exerciseSetSummary(old) : null;
       return {
         name: exercise.name,
-        weight: exercise.weight,
-        reps: exercise.reps,
-        sets: exercise.sets ?? 1,
-        weightDelta: old ? Number((exercise.weight - old.weight).toFixed(8)) : null,
-        repsDelta: old ? exercise.reps - old.reps : null,
-        setsDelta: old ? (exercise.sets ?? 1) - (old.sets ?? 1) : null,
+        ...current,
+        weightDelta: prior ? Number((current.weight - prior.weight).toFixed(8)) : null,
+        repsDelta: prior ? current.reps - prior.reps : null,
+        setsDelta: prior ? current.sets - prior.sets : null,
+        totalRepsDelta: prior ? current.totalReps - prior.totalReps : null,
+        volumeDelta: prior ? Number((current.volume - prior.volume).toFixed(8)) : null,
       };
     }),
   };

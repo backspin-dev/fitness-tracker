@@ -1,4 +1,4 @@
-import { createState, localDate, getWorkout, getPreviousWorkout, commitWorkout, loadState, saveState, validateState, exportBackup, ensureRecoveryBackup, setExerciseRanking } from './data.js';
+import { createState, localDate, getWorkout, getPreviousWorkout, commitWorkout, loadState, saveState, validateState, exportBackup, ensureRecoveryBackup, setExerciseRanking, reorderWorkout } from './data.js';
 import { setupGroups } from './groups-ui.js';
 import { setupProgress } from './progress-ui.js';
 import { hasTrainingData } from './backup-reminder.js';
@@ -7,6 +7,7 @@ import { setupLeaderboard } from './leaderboard-ui.js';
 import { setupExerciseNames } from './exercise-names-ui.js';
 import { setupNavigation } from './navigation.js';
 import { createExerciseVideo, stopExerciseVideos } from './exercise-video-ui.js';
+import { createExerciseSets, parseSetValue, setupExerciseOrder } from './workout-ui.js';
 
 const $ = id => document.getElementById(id);
 function groupInfo(id = split) { return state.groups.find(group => group.id === id); }
@@ -18,6 +19,7 @@ let editId = null, toastTimer, waitingWorker = null, releaseEditor = null;
 let knownToday = localDate(), importing = false;
 let exporting = false;
 let ownsEditor = false, recoverableLoadError = false;
+let workoutOrder = null;
 const navigation = setupNavigation({ canNavigate: () => !importing && !exporting && !document.querySelector('dialog[open]') });
 
 function textNode(tag, text, className) {
@@ -28,13 +30,6 @@ function textNode(tag, text, className) {
 }
 function prettyDate(value) { return dateFormat.format(new Date(`${value}T12:00:00`)); }
 function numberText(value) { return String(value).replace('.', ','); }
-function parseValue(value, field) {
-  const raw = value.trim();
-  const pattern = field === 'sets' ? /^\d{1,2}$/ : field === 'reps' ? /^\d{1,3}$/ : /^\d{1,4}(?:[.,]\d{1,2})?$/;
-  if (!pattern.test(raw)) return null;
-  const number = Number(raw.replace(',', '.'));
-  return Number.isFinite(number) && number >= (field === 'sets' ? 1 : 0) && number <= (field === 'sets' ? 99 : field === 'reps' ? 999 : 2000) ? number : null;
-}
 function setStatus(message, error = false) {
   const dot = textNode('span', '', 'status-dot');
   if (error) dot.classList.add('status-error');
@@ -82,11 +77,11 @@ function changeWorkout(workout, rerender = true, base = state) {
     return saved;
   } catch (error) { showError(error.message); return Promise.resolve(false); }
 }
-function updateMetric(id, field, value) {
+function updateExercise(exercise) {
   const workout = getWorkout(state, date, split);
-  const exercise = workout.find(item => item.id === id);
-  if (!exercise || exercise[field] === value) return;
-  exercise[field] = value;
+  const index = workout.findIndex(item => item.id === exercise.id);
+  if (index < 0) return;
+  workout[index] = exercise;
   changeWorkout(workout, false);
 }
 function updateContext() {
@@ -109,45 +104,8 @@ function updateContext() {
   $('record-workout').hidden = recorded || !workout.length;
   $('workout-hint').textContent = recorded ? 'Elke wijziging wordt automatisch bewaard.' : previous ? 'Je vorige oefeningen, gewichten, sets en reps staan klaar. Alleen aanpassen wat verandert.' : 'Stel je oefeningen één keer in. De volgende keer staan ze klaar.';
 }
-function makeMetric(exercise, field) {
-  const wrap = document.createElement('div');
-  wrap.className = `metric-${field}`;
-  const label = textNode('label', field === 'weight' ? 'GEWICHT · KG' : field === 'sets' ? 'SETS' : 'REPS', 'metric-label');
-  const inputId = `value-${exercise.id}-${field}`;
-  label.htmlFor = inputId;
-  const stepper = document.createElement('div'); stepper.className = 'stepper';
-  const minus = textNode('button', '−'), plus = textNode('button', '+');
-  const fieldName = field === 'weight' ? 'Gewicht' : field === 'sets' ? 'Sets' : 'Reps';
-  minus.setAttribute('aria-label', `${fieldName} verlagen voor ${exercise.name}`);
-  plus.setAttribute('aria-label', `${fieldName} verhogen voor ${exercise.name}`);
-  const input = document.createElement('input');
-  input.type = 'text'; input.id = inputId; input.value = numberText(exercise[field]);
-  input.inputMode = field === 'weight' ? 'decimal' : 'numeric';
-  input.autocomplete = 'off'; input.maxLength = field === 'weight' ? 7 : field === 'sets' ? 2 : 3;
-  input.setAttribute('aria-label', `${fieldName} voor ${exercise.name}`);
-  input.addEventListener('focus', () => input.select());
-  input.addEventListener('input', () => {
-    const value = parseValue(input.value, field);
-    input.setAttribute('aria-invalid', String(value === null));
-    if (value !== null) updateMetric(exercise.id, field, value);
-  });
-  input.addEventListener('blur', () => {
-    const saved = getWorkout(state, date, split).find(item => item.id === exercise.id);
-    if (!saved) return;
-    if (parseValue(input.value, field) === null) toast(field === 'weight' ? 'Vul een gewicht van 0 tot 2.000 kg in.' : field === 'sets' ? 'Vul een heel aantal sets van 1 tot 99 in.' : 'Vul een heel aantal reps van 0 tot 999 in.');
-    input.value = numberText(saved[field]); input.removeAttribute('aria-invalid');
-  });
-  input.addEventListener('keydown', event => { if (event.key === 'Enter') input.blur(); });
-  function step(direction) {
-    const current = getWorkout(state, date, split).find(item => item.id === exercise.id);
-    if (!current) return;
-    const value = Math.max(field === 'sets' ? 1 : 0, Math.min(field === 'weight' ? 2000 : field === 'sets' ? 99 : 999, Math.round((current[field] + direction * (field === 'weight' ? 0.5 : 1)) * 100) / 100));
-    input.value = numberText(value); input.removeAttribute('aria-invalid'); updateMetric(exercise.id, field, value);
-  }
-  minus.addEventListener('click', () => step(-1)); plus.addEventListener('click', () => step(1));
-  stepper.append(minus, input, plus); wrap.append(label, stepper); return wrap;
-}
 function render() {
+  workoutOrder?.cancel();
   document.querySelectorAll('#main button, #main input').forEach(item => { item.disabled = false; });
   if (!groupInfo()) split = state.groups.find(group => !group.archived).id;
   $('split-title').textContent = groupInfo().name;
@@ -166,14 +124,24 @@ function render() {
   const workout = getWorkout(state, date, split);
   const cards = workout.map((exercise, index) => {
     const card = document.createElement('article'); card.className = 'exercise-card';
+    card.dataset.exerciseId = exercise.id; card.dataset.exerciseName = exercise.name;
     const top = document.createElement('div'); top.className = 'exercise-top';
     const edit = textNode('button', '···', 'edit-exercise');
     edit.setAttribute('aria-label', `${exercise.name} bewerken of verwijderen`);
-    edit.addEventListener('click', () => openExercise(exercise));
-    top.append(textNode('span', String(index + 1).padStart(2, '0'), 'exercise-number'), textNode('h3', exercise.name, 'exercise-name'), edit);
-    const metrics = document.createElement('div'); metrics.className = 'metrics';
-    metrics.append(makeMetric(exercise, 'weight'), makeMetric(exercise, 'sets'), makeMetric(exercise, 'reps'));
-    card.append(top, metrics);
+    edit.addEventListener('click', () => openExercise(getWorkout(state, date, split).find(item => item.id === exercise.id)));
+    const handle = textNode('button', '⠿', 'drag-exercise');
+    handle.type = 'button'; handle.dataset.dragExercise = exercise.id;
+    handle.setAttribute('aria-label', `${exercise.name} verplaatsen`);
+    handle.setAttribute('aria-describedby', 'exercise-order-help');
+    handle.setAttribute('aria-pressed', 'false'); handle.title = 'Versleep om de volgorde te wijzigen';
+    handle.addEventListener('click', () => openExercise(getWorkout(state, date, split).find(item => item.id === exercise.id)));
+    top.append(textNode('span', String(index + 1).padStart(2, '0'), 'exercise-number'), textNode('h3', exercise.name, 'exercise-name'), handle, edit);
+    const sets = createExerciseSets(exercise, {
+      getExercise: () => getWorkout(state, date, split).find(item => item.id === exercise.id),
+      onChange: updateExercise, canEdit: () => loaded && !importing,
+      confirmRemove: (number, name) => confirmAction('Set verwijderen?', `Set ${number} van ${name} verdwijnt uit deze training.`, 'Verwijderen'), toast,
+    });
+    card.append(top, sets);
     const video = createExerciseVideo(exercise); if (video) card.append(video);
     return card;
   });
@@ -197,12 +165,24 @@ function openExercise(exercise = null) {
   $('exercise-name').value = exercise?.name ?? '';
   $('exercise-weight').value = numberText(exercise?.weight ?? 0);
   $('exercise-reps').value = String(exercise?.reps ?? 0);
-  $('exercise-sets').value = String(exercise?.sets ?? 1);
+  $('exercise-initial-set').hidden = !!exercise;
+  $('exercise-weight').required = $('exercise-reps').required = !exercise;
+  $('exercise-order-actions').hidden = !exercise;
+  updateOrderActions();
   $('delete-exercise').hidden = !exercise;
   $('save-exercise').textContent = exercise ? 'Wijzigingen bewaren' : 'Toevoegen';
   $('exercise-error').hidden = true;
   exerciseNames.open(exercise);
   $('exercise-dialog').showModal(); $('exercise-name').focus();
+}
+function updateOrderActions() {
+  const workout = getWorkout(state, date, split), index = workout.findIndex(item => item.id === editId);
+  $('move-exercise-up').disabled = !loaded || index <= 0;
+  $('move-exercise-down').disabled = !loaded || index < 0 || index >= workout.length - 1;
+}
+function moveExercise(id, targetIndex) {
+  if (!loaded || importing) return;
+  changeWorkout(reorderWorkout(getWorkout(state, date, split), id, targetIndex));
 }
 function confirmAction(title, message, action) {
   return new Promise(resolve => {
@@ -234,22 +214,30 @@ $('record-workout').addEventListener('click', async () => { if (await changeWork
 $('exercise-form').addEventListener('submit', event => {
   event.preventDefault();
   if (!loaded || importing) return;
-  const name = $('exercise-name').value.trim(), weight = parseValue($('exercise-weight').value, 'weight'), reps = parseValue($('exercise-reps').value, 'reps');
-  const sets = parseValue($('exercise-sets').value, 'sets');
-  if (!name || weight === null || reps === null || sets === null) {
-    $('exercise-error').textContent = 'Vul een naam, gewicht van 0–2.000 kg, 1–99 sets en 0–999 reps in.';
+  const name = $('exercise-name').value.trim(), weight = parseSetValue($('exercise-weight').value, 'weight'), reps = parseSetValue($('exercise-reps').value, 'reps');
+  if (!name || (!editId && (weight === null || reps === null))) {
+    $('exercise-error').textContent = 'Vul een naam, gewicht van 0–2.000 kg en 0–999 reps in.';
     $('exercise-error').hidden = false; return;
   }
   const workout = getWorkout(state, date, split);
-  const exercise = { id: editId || crypto.randomUUID(), name, weight, reps, sets };
+  const current = workout.find(item => item.id === editId);
+  if (editId && !current) return;
+  const exercise = current ? { ...current, name } : { id: crypto.randomUUID(), name, weight, reps, sets: 1 };
   const rankingKey = exerciseNames.getRankingKey();
-  if (rankingKey) exercise.rankingKey = rankingKey;
+  if (rankingKey) exercise.rankingKey = rankingKey; else delete exercise.rankingKey;
   let base = state;
   try { if (editId && exerciseNames.hasChanged()) base = setExerciseRanking(state, split, editId, rankingKey || null); }
   catch (error) { $('exercise-error').textContent = error.message; $('exercise-error').hidden = false; return; }
   if (editId) workout[workout.findIndex(item => item.id === editId)] = exercise; else workout.push(exercise);
   changeWorkout(workout, true, base); $('exercise-dialog').close();
 });
+for (const [id, direction] of [['move-exercise-up', -1], ['move-exercise-down', 1]]) {
+  $(id).addEventListener('click', () => {
+    const workout = getWorkout(state, date, split), index = workout.findIndex(item => item.id === editId);
+    if (index < 0 || index + direction < 0 || index + direction >= workout.length) return;
+    moveExercise(editId, index + direction); updateOrderActions(); toast(`Verplaatst naar plek ${index + direction + 1}.`);
+  });
+}
 $('delete-exercise').addEventListener('click', async () => {
   if (await confirmAction('Oefening verwijderen?', 'Deze oefening verdwijnt uit deze training. Eerdere opgeslagen trainingen blijven bewaard.', 'Verwijderen')) {
     changeWorkout(getWorkout(state, date, split).filter(item => item.id !== editId)); $('exercise-dialog').close();
@@ -309,11 +297,15 @@ $('import-file').addEventListener('change', async event => {
     if (failed) throw new Error('Bewaar of exporteer eerst je huidige wijzigingen voordat je gegevens vervangt.');
     await saveState(imported, { protectCurrent: 'import' });
     state = savedState = imported; split = imported.ui?.split || imported.groups.find(group => !group.archived).id; date = localDate(); failed = false;
-    $('app-error').hidden = true; render(); progress.refresh(); setStatus('Bewaard op dit apparaat');
+    $('app-error').hidden = true; setStatus('Bewaard op dit apparaat');
     $('backup-message').textContent = 'Import gelukt. Je gegevens zijn op dit apparaat bewaard.';
     importedSuccessfully = true; toast('Je oefeningen staan klaar.');
   } catch (error) { $('backup-message').textContent = `Import niet uitgevoerd. ${error instanceof SyntaxError ? 'Dit is geen geldig JSON-bestand.' : error.message}`; }
-  finally { importing = false; $('main').inert = false; $('settings-page').inert = false; if (importedSuccessfully) navigation.open('training'); await recovery.refresh(); leaderboard.onSaved(); }
+  finally {
+    importing = false; $('main').inert = false; $('settings-page').inert = false;
+    if (importedSuccessfully) { render(); progress.refresh(); navigation.open('training'); }
+    await recovery.refresh(); leaderboard.onSaved();
+  }
 });
 $('update-button').addEventListener('click', async () => {
   await saveQueue; if (failed || !waitingWorker) return;
@@ -369,10 +361,14 @@ const groups = setupGroups({ getState: () => state, canEdit: () => loaded && !im
 const progress = setupProgress({ getState: () => state, canEdit: () => loaded && !importing, changeState, confirmAction, toast, navigation });
 const leaderboard = setupLeaderboard({ getState: () => savedState, canEdit: () => loaded && !importing, toast, navigation });
 const exerciseNames = setupExerciseNames({ loadSuggestions: () => leaderboard.getExerciseSuggestions() });
-for (const page of ['statistieken', 'ranglijst', 'gegevens']) navigation.onOpen(page, () => stopExerciseVideos($('main')));
+workoutOrder = setupExerciseOrder({ list: $('exercise-list'), canEdit: () => loaded && !importing, onMove: moveExercise, announce: toast });
+for (const page of ['statistieken', 'ranglijst', 'gegevens']) navigation.onOpen(page, () => {
+  workoutOrder.cancel(); stopExerciseVideos($('main'));
+});
 const recovery = setupRecovery({ canEdit: () => ownsEditor && (loaded || recoverableLoadError) && !importing, canPreserveCurrent: () => loaded, confirmAction, toast, restoreState: async snapshot => {
   if (!ownsEditor || (!loaded && !recoverableLoadError) || importing || exporting) return false;
-    importing = true; $('main').inert = true; $('settings-page').inert = true;
+  let restoredSuccessfully = false;
+  importing = true; $('main').inert = true; $('settings-page').inert = true;
   try {
     await saveQueue;
     if (failed) throw new Error('Bewaar of exporteer eerst je huidige wijzigingen voordat je een kopie terugzet.');
@@ -381,8 +377,12 @@ const recovery = setupRecovery({ canEdit: () => ownsEditor && (loaded || recover
     state = savedState = restored; split = state.ui?.split || state.groups.find(group => !group.archived).id; date = localDate();
     loaded = true; recoverableLoadError = false; failed = false; $('app-error').hidden = true;
     $('import-backup').disabled = false; $('export-backup').disabled = false;
-    render(); progress.refresh(); setStatus('Bewaard op dit apparaat'); return true;
-  } finally { importing = false; $('main').inert = false; $('settings-page').inert = false; leaderboard.onSaved(); }
+    restoredSuccessfully = true; setStatus('Bewaard op dit apparaat'); return true;
+  } finally {
+    importing = false; $('main').inert = false; $('settings-page').inert = false;
+    if (restoredSuccessfully) { render(); progress.refresh(); }
+    leaderboard.onSaved();
+  }
 } });
 
 async function init() {

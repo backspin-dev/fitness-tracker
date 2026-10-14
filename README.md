@@ -35,10 +35,12 @@ in je geschiedenis en voortgang.
 
 **Statistieken** opent je voortgang:
 
-- **Oefeningen:** bekijk gewicht of reps per set per opgeslagen training en het
-  totale aantal herhalingen per oefening binnen dat onderdeel. Het totaal is
-  **sets × reps per set**, opgeteld over de opgeslagen trainingen. Drie sets van
-  tien reps leveren dus dertig herhalingen op. Iedere opgeslagen trainingsdag
+- **Oefeningen:** bekijk de zwaarste echte set per opgeslagen training en het
+  totale aantal herhalingen per oefening binnen dat onderdeel. Bij hetzelfde
+  gewicht kiest de grafiek de set met de meeste reps. Gewicht en reps komen
+  steeds uit dezelfde set; de metingentabel toont alle sets. Het totaal telt
+  **de reps van iedere losse set** op. Sets van 12, 10 en 8 reps leveren dus
+  dertig herhalingen op. Iedere opgeslagen trainingsdag
   telt één keer; opnieuw aanpassen vervangt die dag en telt niet dubbel.
   Klaargezette oefeningen tellen pas mee zodra je die training bewaart of
   aanpast. Een naamswijziging houdt de geschiedenis bij elkaar.
@@ -49,8 +51,14 @@ in je geschiedenis en voortgang.
   met de vorige opgeslagen training per oefening.
 
 De telling gaat over **opgeslagen trainingen**, niet over afgevinkte of afgeronde
-trainingen. Eén oefening heeft één gewicht, aantal sets en aantal reps per set
-voor die trainingsdag. De app registreert geen verschillende waarden per losse set.
+trainingen. Iedere set heeft een eigen gewicht en aantal reps. Met **Set toevoegen**
+kopieer je de laatste set; daarna kun je beide waarden aanpassen. Verwijderen vraagt
+een korte bevestiging en er blijft altijd minstens één set staan.
+
+Versleep het handvat naast de oefennaam om de volgorde te wijzigen. Via het handvat
+of het oefenmenu kun je ook **Omhoog** en **Omlaag** kiezen. De volgorde wordt met
+die trainingsdag bewaard en bij een volgende training overgenomen. Eerdere
+opgeslagen trainingsdagen behouden hun eigen volgorde.
 
 ## Uitlegvideo's
 
@@ -118,9 +126,11 @@ ranglijst. Bij import blijft de vorige huidige toestand als lokale herstelkopie
 beschikbaar.
 
 Oudere back-ups en bestaande lokale gegevens worden automatisch naar
-**schemaversie 4** omgezet. Oefeningen uit versies 1 en 2 krijgen **één set**,
+**schemaversie 5** omgezet. Oefeningen uit versies 1 en 2 krijgen **één set**,
 zodat eerdere reptotalen gelijk blijven. De koppeling met een ranglijstoefening
-wordt automatisch ingevuld; je eigen oefennamen blijven behouden. IDs, oefeningen,
+wordt automatisch ingevuld; je eigen oefennamen blijven behouden. Versies 3 en 4
+behouden hun aantal sets met de eerdere kg/reps als waarden voor iedere set. Gelijke
+sets blijven compact opgeslagen; alleen afwijkingen krijgen extra velden. IDs, oefeningen,
 gewichten, reps, trainingsdatums, eigen onderdelen en lichaamsmetingen blijven
 behouden. Back-ups mogen maximaal **7 MiB** groot zijn. De extra ruimte houdt oudere
 bestanden bruikbaar wanneer sets of ranglijstkoppelingen worden toegevoegd.
@@ -186,7 +196,7 @@ Je oefeningen en geschiedenis in het lokale logboek blijven aan hun eigen IDs
 gekoppeld.
 
 Alleen je openbare naam en een totaal per ranglijstoefening worden gepubliceerd:
-de herkenbare oefennaam plus het aantal herhalingen (**sets × reps**, over
+de herkenbare oefennaam plus het aantal herhalingen (**som van alle losse sets**, over
 opgeslagen trainingen tot en met vandaag). Dezelfde ranglijstoefening telt
 over je verschillende onderdelen heen bij elkaar op. De technische dienst
 bewaart daarbij een anonieme identiteit en de bijwerkdatum. Bij een eigen

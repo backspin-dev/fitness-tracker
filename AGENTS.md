@@ -41,7 +41,7 @@ de app licht en de privacyregels hieronder intact.
 ## Ontwikkeling
 
 - `index.html`, `styles.css` en `app.js`: interface en bediening. Eén oefening
-  heeft per trainingsdag één gewicht, aantal sets en reps per set. De kop heeft
+  heeft per trainingsdag één of meer sets, ieder met eigen gewicht en reps. De kop heeft
   compacte toegankelijke knoppen voor Statistieken, Ranglijst, Geschiedenis en
   Instellingen; Fitness brengt je naar Training. Training, Statistieken,
   Ranglijst en Jouw gegevens zijn gewone pagina’s, geen modale dialogen.
@@ -59,10 +59,19 @@ de app licht en de privacyregels hieronder intact.
   Houd dialogen voor korte bewerkingen, bevestigingen en geschiedenis.
 - `groups-ui.js`: schema's kiezen, eigen onderdelen, hernoemen, verbergen en
   terugzetten. Verbergen bewaart oefeningen en geschiedenis.
+- `workout-ui.js`: compacte setrijen, toevoegen/verwijderen en verslepen via een
+  afzonderlijk handvat met Pointer Events. Kleine invoerwijzigingen mogen geen
+  kaart/render of focusverlies veroorzaken. Nieuwe sets kopiëren de laatste;
+  verwijderen vraagt bevestiging en houdt minstens één set. Verslepen commit
+  uitsluitend bij loslaten; cancel/Escape/paginawissel verandert niets. Laat
+  invoervelden en de pagina normaal scrollen buiten het handvat. Bied Omhoog/
+  Omlaag als bereikbaar alternatief. De volgorde hoort bij het daglogboek,
+  behoudt oefen-IDs en gaat mee naar de volgende training.
 - `progress-ui.js`: voortgangsscherm en lichaamsgewicht invoeren.
 - `stats.js` en `stats.css`: statistieken en grafieken zonder externe resources.
-  Totale herhalingen zijn de som van **sets × reps** over opgeslagen trainingen;
-  de repsgrafiek toont **reps per set**. Klaargezette trainingen tellen pas na
+  Totale herhalingen zijn de som van alle losse set-reps over opgeslagen trainingen;
+  gewicht/reps in grafieken komen uit dezelfde echt uitgevoerde zwaarste set
+  (bij gelijk gewicht meeste reps). Tabellen tonen alle sets. Klaargezette trainingen tellen pas na
   bewaren mee; aanpassen van een opgeslagen dag vervangt die dag.
 - `exercise-catalog.js`: echte vaste ranglijstoefeningen met onderzoeksbronnen,
   zorgvuldig gekozen aliassen en invoersuggesties. Voeg geen verzonnen
@@ -106,13 +115,18 @@ de app licht en de privacyregels hieronder intact.
   en het verlaten van Training. De iframe geeft alleen de app-origin door via
   strict-origin-when-cross-origin; dat is nodig om YouTube-fout 153 te vermijden.
   Beloof geen advertentievrije, offline of blijvend beschikbare YouTube-video's.
-- `data.js`: gegevensmodel, migratie, opslag en JSON-validatie. Schemaversie 4
+- `data.js`: gegevensmodel, migratie, opslag en JSON-validatie. Schemaversie 5
   bevat `groups`, `routines`, `sessions`, `bodyWeights` en de optionele `ui`.
   Oefeningen bevatten `id`, `name`, `weight`, `reps`, `sets` (heel getal 1–99)
-  en optioneel `rankingKey` voor een expliciete ranglijstkoppeling. Accepteer
-  versies 1, 2 en 3 uit lokale opslag en back-ups. Migreer oefeningen uit versies
+  en optioneel `rankingKey` voor een expliciete ranglijstkoppeling. `weight` en
+  `reps` zijn de eerste-set-baseline; optioneel `setValues` bevat uitsluitend
+  afwijkingen als null of {weight?, reps?}, met maximaal `sets` elementen en
+  zonder overbodige trailing nulls. `getExerciseSets` geeft onafhankelijke
+  volledige setrijen. Gebruik helpers voor setbewerkingen; overschrijf nooit
+  onbedoeld de andere sets. Accepteer versies 1, 2, 3 en 4 uit lokale opslag en back-ups. Migreer oefeningen uit versies
   1 en 2 naar één set,
-  zodat oude reptotalen gelijk blijven; versie 3 behoudt de bestaande sets. Vul
+  zodat oude reptotalen gelijk blijven; versies 3/4 behouden de bestaande gelijke
+  sets. Migreer zonder arrays met 99 herhaalde sets of onnodige opslaggroei. Vul
   ranglijstkoppelingen automatisch in zonder vrije namen of lokale IDs te wijzigen.
   Voeg bij migratie geen lege `rankingKey`-velden toe. Verlies geen IDs, oefeningen,
   gewichten, reps, trainingsdatums, onderdelen of lichaamsmetingen.
@@ -132,7 +146,7 @@ de app licht en de privacyregels hieronder intact.
   aangeboden; begin die flow niet opnieuw bij oude metadata.
 - `leaderboard.js`, `leaderboard-ui.js` en `leaderboard-config.js`: automatische
   alias/scoreverbinding per oefening, eenmalige naamstart en publieke configuratie.
-  Ranglijsttotalen tellen sets × reps per canonieke oefening op over onderdelen
+  Ranglijsttotalen tellen losse set-reps per canonieke oefening op over onderdelen
   heen; lokale statistieken blijven de eigen oefening- en onderdeel-IDs gebruiken.
   `supabase/schema.sql` bevat toegangsregels en scorefuncties;
   `supabase/README.md` beschrijft installatie. Netwerkfouten mogen lokaal opslaan
@@ -141,6 +155,12 @@ de app licht en de privacyregels hieronder intact.
   zijn naam bevestigen met de nieuwe openbare melding. Geen extra keuze voor
   deelname of gebruikerslogin toevoegen.
   Beveilig writes met de anonieme identiteit; een alias is geen autorisatie.
+  `supabase/moderation.sql` voegt herstelbare beheeruitsluiting toe: een private,
+  afgeschermde tabel en triggers verbieden opnieuw publiceren voor hetzelfde
+  anonieme UUID, ook via oudere clients. Uitgesloten scores worden `active=false`;
+  de eigenaar kan dit herstellen. Publiceer geen echte deelnemersnamen/UUIDs in
+  SQL-bronbestanden. PT403 krijgt een vast veilig bericht en vervangt nooit een
+  lokale identiteit. Zonder login is een volledig nieuwe identiteit niet te herkennen.
 - `sw.js`: offline app-shell. Verhoog `CACHE_VERSION` als een gecachet bestand
   verandert. Cache uitsluitend openbare appbestanden, nooit Supabase-antwoorden
   of sessietokens. Installeer updates pas na toestemming in de app of het sluiten
@@ -159,12 +179,12 @@ bewaren na herladen, afzonderlijke invoer per onderdeel, vorige training
 (inclusief sets) automatisch overnemen, datumwissels, toevoegen en verwijderen.
 Controleer wisselen tussen Push/Pull/Legs, Full body en Upper/Lower, eigen
 onderdelen, hernoemen en verbergen/terugzetten zonder verlies van geschiedenis.
-Controleer lege grafieken, gewicht/reps per set, totale sets × reps,
+Controleer lege grafieken, gewicht/reps van de zwaarste echte set, som van losse reps,
 lichaamsgewicht per datum en trainingstellingen. Trainingstellingen betreffen
 niet-lege opgeslagen trainingen, geen voltooiingsstatus.
 
-Controleer geldige en ongeldige JSON-back-ups, migratie van versies 1/2/3 en
-versie-4-export/import met sets, ranglijstkoppelingen, eigen onderdelen en
+Controleer geldige en ongeldige JSON-back-ups, migratie van versies 1/2/3/4 en
+versie-5-export/import met afwijkende sets, volgorde, ranglijstkoppelingen, eigen onderdelen en
 lichaamsgewicht. Controleer migratie van een oud bestand vlak onder 5 MiB en
 een versie-3-bestand vlak onder 6 MiB naar de nieuwe limiet van 7 MiB.
 Controleer herstel na herladen, maximaal zeven kopieën, vervanging van de dagkopie,
