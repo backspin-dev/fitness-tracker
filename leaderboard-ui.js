@@ -4,12 +4,13 @@ import { EXERCISE_CATALOG } from './exercise-catalog.js';
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from './leaderboard-config.js';
 
 // Los van de lokale opslagflow: netwerkfouten blokkeren lokaal opslaan nooit.
-export function renderLeaderboardRows(container, scores) {
+export function renderLeaderboardRows(container, scores, metric = 'reps') {
   const document = container.ownerDocument, number = new Intl.NumberFormat('nl-NL');
   const rows = scores.map((score, index) => {
     const row = document.createElement('div'); row.className = 'comparison-row';
     const name = document.createElement('strong'); name.textContent = `${index + 1}. ${score.display_name}`;
-    const value = document.createElement('span'); value.textContent = `${number.format(score.total_reps)} reps`;
+    const value = document.createElement('span');
+    value.textContent = metric === 'weight' ? `${number.format(score.max_weight)} kg` : `${number.format(score.total_reps)} reps`;
     row.append(name, value); return row;
   });
   if (!rows.length) {
@@ -22,14 +23,14 @@ export function renderLeaderboardRows(container, scores) {
 export function setupLeaderboard({ getState, canEdit, toast, navigation }) {
   const client = createLeaderboardClient({ url: SUPABASE_URL, anonKey: SUPABASE_ANON_KEY });
   const number = new Intl.NumberFormat('nl-NL');
-  let saving = false, loading = false, syncTimer, selectedExercise = '', userSelected = false, remoteExercises = [], loadSequence = 0, editingName = false;
+  let saving = false, loading = false, syncTimer, selectedExercise = '', selectedMetric = 'reps', userSelected = false, remoteExercises = [], loadSequence = 0, editingName = false;
   const node = (tag, text, className) => {
     const el = document.createElement(tag); if (text !== undefined) el.textContent = text;
     if (className) el.className = className; return el;
   };
   const nameDialog = node('dialog'); nameDialog.id = 'leaderboard-name-dialog'; nameDialog.setAttribute('aria-labelledby', 'leaderboard-name-title');
   const nameTitle = node('h2', 'Hoe heet je?'); nameTitle.id = 'leaderboard-name-title';
-  const notice = node('p', 'Je naam, ranglijstoefeningen en totale reps per oefening zijn openbaar. Je volledige trainingslogboek blijft op dit toestel.', 'settings-copy');
+  const notice = node('p', 'Je naam, ranglijstoefeningen, totale reps en zwaarste gewicht per oefening zijn openbaar. Je volledige trainingslogboek blijft op dit toestel.', 'settings-copy');
   const nameForm = node('form'), nameLabel = node('label', 'Jouw naam', 'field-label'); nameLabel.htmlFor = 'leaderboard-first-name';
   const nameInput = node('input', undefined, 'text-input'); nameInput.id = 'leaderboard-first-name'; nameInput.type = 'text';
   nameInput.maxLength = 24; nameInput.required = true; nameInput.autocomplete = 'nickname'; nameInput.placeholder = 'Jouw naam';
@@ -54,11 +55,15 @@ export function setupLeaderboard({ getState, canEdit, toast, navigation }) {
   const back = node('a', '←', 'back-link icon-button'); back.href = '#/training'; back.setAttribute('aria-label', 'Terug naar training'); heading.append(title, back);
   const exerciseLabel = node('label', 'Oefening', 'field-label'); exerciseLabel.htmlFor = 'leaderboard-exercise';
   const exercise = node('select', undefined, 'text-input'); exercise.id = 'leaderboard-exercise';
+  const metrics = node('div', undefined, 'metric-switch'); metrics.setAttribute('role', 'group'); metrics.setAttribute('aria-label', 'Highscore');
+  const reps = node('button', 'Meeste reps', 'secondary'); reps.id = 'leaderboard-reps'; reps.type = 'button';
+  const weight = node('button', 'Zwaarste gewicht', 'secondary'); weight.id = 'leaderboard-weight'; weight.type = 'button';
+  metrics.append(reps, weight);
   const own = node('div', undefined, 'summary-tile'), ownTotal = node('strong'), ownLabel = node('span'); own.append(ownTotal, ownLabel);
   const boardHeading = node('h3', 'Top 50', 'small-heading'), rows = node('div'); rows.id = 'leaderboard-list';
   const refresh = node('button', 'Vernieuwen', 'secondary full'); refresh.type = 'button';
   const error = node('p', '', 'field-error'); error.setAttribute('role', 'alert'); error.hidden = true;
-  page.append(heading, exerciseLabel, exercise, own, boardHeading, rows, refresh, error); document.getElementById('app-content').append(page);
+  page.append(heading, exerciseLabel, exercise, metrics, own, boardHeading, rows, refresh, error); document.getElementById('app-content').append(page);
   const editName = document.getElementById('edit-player-name');
 
   function scores() { return aggregateExerciseScores(getState(), localDate()); }
@@ -78,8 +83,12 @@ export function setupLeaderboard({ getState, canEdit, toast, navigation }) {
     }));
     exercise.value = selectedExercise;
     const selectedName = all.get(selectedExercise)?.exercise_name || 'deze oefening';
-    ownTotal.textContent = `${number.format(local.find(item => item.exercise_key === selectedExercise)?.total_reps ?? 0)} reps`;
-    ownLabel.textContent = 'Jouw totaal'; boardHeading.textContent = `Top 50 · ${selectedName}`;
+    const ownScore = local.find(item => item.exercise_key === selectedExercise);
+    ownTotal.textContent = selectedMetric === 'weight' ? `${number.format(ownScore?.max_weight ?? 0)} kg` : `${number.format(ownScore?.total_reps ?? 0)} reps`;
+    ownLabel.textContent = selectedMetric === 'weight' ? 'Jouw zwaarste gewicht' : 'Jouw totaal';
+    reps.setAttribute('aria-pressed', String(selectedMetric === 'reps'));
+    weight.setAttribute('aria-pressed', String(selectedMetric === 'weight'));
+    boardHeading.textContent = `Top 50 · ${selectedName}`;
   }
   function controls() {
     nameInput.disabled = nameStart.disabled = !canEdit() || saving || !client.configured;
@@ -109,8 +118,8 @@ export function setupLeaderboard({ getState, canEdit, toast, navigation }) {
         if (sequence !== loadSequence) return;
         remoteExercises = directory; options(true);
       }
-      const result = await client.getScores(selectedExercise);
-      if (sequence === loadSequence) renderLeaderboardRows(rows, result);
+      const result = await client.getScores(selectedExercise, selectedMetric);
+      if (sequence === loadSequence) renderLeaderboardRows(rows, result, selectedMetric);
     } catch (cause) {
       if (sequence === loadSequence) { rows.replaceChildren(); failed(cause); }
     } finally { if (sequence === loadSequence) { loading = false; controls(); } }
@@ -145,6 +154,12 @@ export function setupLeaderboard({ getState, canEdit, toast, navigation }) {
   };
   if (editName) editName.onclick = () => { if (canEdit()) openName(true); };
   exercise.onchange = () => { selectedExercise = exercise.value; userSelected = true; error.hidden = true; options(); void load(false); };
+  for (const [button, metric] of [[reps, 'reps'], [weight, 'weight']]) {
+    button.onclick = () => {
+      if (selectedMetric === metric) return;
+      selectedMetric = metric; error.hidden = true; options(); void load(false);
+    };
+  }
   refresh.onclick = async () => { error.hidden = true; await sync(); await load(); };
   navigation.onOpen('ranglijst', () => {
     if (ensureName()) return;

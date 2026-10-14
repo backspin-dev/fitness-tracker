@@ -1,9 +1,10 @@
 # Ranglijsten per oefening
 
 Trainingen, wegingen en herstelkopieën blijven lokaal. Iedereen geeft bij het
-eerste gebruik één naam op en ziet daarbij dat de naam, ranglijstoefeningen en
-de som van de reps uit alle losse sets per oefening openbaar zijn. Daarna worden de oefenscores
-automatisch bijgewerkt. Individuele trainingsdatums, gewichten, sets, reps per training,
+eerste gebruik één naam op en ziet daarbij dat de naam, ranglijstoefeningen,
+de som van de reps uit alle losse sets en het zwaarste gebruikte gewicht per
+oefening openbaar zijn. Daarna worden de oefenscores automatisch bijgewerkt.
+Individuele trainingsdatums, de overige gewichten, sets, reps per training,
 lichaamsgewicht en het volledige logboek worden nooit verstuurd.
 
 ## Eenmalige inrichting
@@ -19,11 +20,18 @@ lichaamsgewicht en het volledige logboek worden nooit verstuurd.
    `index.html`. Verhoog de offline cacheversie voor gewijzigde bestanden.
 5. Controleer met twee testdeelnemers afzonderlijke scores bij dezelfde naam,
    naam wijzigen zonder nieuwe identiteit, oefenfilter, aliasnormalisatie,
-   de verplichte naamstart en naam wijzigen via Instellingen. Controleer dat REST `select=user_id` faalt,
+   de verplichte naamstart, naam wijzigen via Instellingen en afzonderlijk
+   sorteren op **Meeste reps** en **Zwaarste gewicht**. Controleer dat REST `select=user_id` faalt,
    anoniem schrijven zonder user-JWT faalt en direct schrijven naar
    `fitness_exercise_scores` onmogelijk is. Verberg alleen zelf aangemaakte
    testdeelnemers na controle via de eigen `fitness_leave_exercise_scores` RPC;
    er worden geen rijen permanent verwijderd.
+
+Een bestaand ingericht project werkt bij met `weight-ranking.sql`, vóór de
+nieuwe client wordt gepubliceerd. Die migratie kan opnieuw worden uitgevoerd
+en verandert geen trainingslogboeken, actieve deelnemers of beheeruitsluitingen.
+Oude scores krijgen geen fictief 0kg-record: `max_weight` blijft `NULL` totdat
+de bijgewerkte client na de nieuwe openbaarheidsmelding een gewichtrecord deelt.
 
 ## Oefeningen en privacy
 
@@ -40,14 +48,16 @@ De server bewaart dezelfde catalogus met aliassen in het niet-blootgestelde
 schema. Bekende sleutels krijgen uitsluitend het cataloguslabel. Een eigen
 sleutel moet bij de genormaliseerde naam horen; bekende aliassen worden ook
 serverzijdig naar de vaste sleutel omgezet. Daardoor kan een oudere client met
-`custom:squats` geen tweede Squat-ranglijst maken. Dubbelen na normalisatie worden
-opgeteld. De server vervangt alle actieve oefenscores van uitsluitend de JWT-
+`custom:squats` geen tweede Squat-ranglijst maken. Bij dubbelen na normalisatie
+worden reps opgeteld en wordt het hoogste gedeelde gewicht gebruikt. De server
+vervangt alle actieve oefenscores van uitsluitend de JWT-
 eigenaar atomair; weggelaten oefeningen worden verborgen. De client bepaalt de
 laatste opgeslagen naam/indeling per lokale groep en oefen-ID en gebruikt die
-voor alle eerdere reps van diezelfde oefening.
+voor alle eerdere reps en gewichtrecords van diezelfde oefening.
 
 De nieuwe tabel `fitness_exercise_scores` heeft RLS en alleen openbare SELECT-
-kolomrechten voor oefensleutel, oefenlabel, alias, totaalscore en bijwerktijd.
+kolomrechten voor oefensleutel, oefenlabel, alias, totaal reps, zwaarste gewicht
+en bijwerktijd.
 Gebruikers-IDs en de actieve vlag zijn niet leesbaar. Rechtstreeks schrijven is
 niet toegestaan; de RPC controleert `auth.uid()` en schrijft uitsluitend eigen
 rijen. Publieke RPC-wrappers zijn security invoker. De beperkte security definer-
@@ -63,10 +73,11 @@ venster verschijnt niet tijdens laden, in een alleen-lezen tabblad of bij een
 opslagfout die het logboek verhindert te laden. **Naam wijzigen** staat in
 Instellingen en gebruikt hetzelfde veld, dan met een annuleermogelijkheid.
 
-Ook een oud profiel voor uitsluitend de globale totaalscore bevestigt eenmalig
-de naam in dit venster. Naam en anonieme sessie blijven behouden; pas na
-**Starten** wordt `scoreMode: 'exercise-v1'` bewaard. Profielen die al een actieve
-naam voor deze scoremodus hebben, hoeven dit niet te herhalen. De normale app
+Ook een oud profiel voor uitsluitend reps bevestigt eenmalig de naam in dit
+venster, met de nieuwe melding over het openbare gewichtrecord. Naam en anonieme
+sessie blijven behouden; pas na **Starten** wordt `scoreMode: 'exercise-v2'`
+bewaard. Profielen die al een actieve naam voor deze scoremodus hebben, hoeven
+dit niet te herhalen. De normale app
 biedt geen keuze om niet aan de ranglijst deel te nemen. Publiceren van
 per-oefeningscores verbergt de eigen oude globale score. De oude tabel en RPC
 blijven bestaan voor reeds gecachete appversies.
@@ -81,16 +92,27 @@ Er wordt alleen native `fetch` gebruikt, zonder SDK:
   `exercise_key,exercise_name`, zonder zoektekst of user-JWT.
 - Oefenranglijst: `GET /rest/v1/fitness_exercise_scores` met alleen openbare
   kolommen, een gequote en URL-gecodeerd `exercise_key=in.("…")` filter,
-  `order=total_reps.desc,updated_at.asc` en `limit=50`.
+  `order=total_reps.desc,updated_at.asc` voor reps of
+  `max_weight=not.is.null&order=max_weight.desc.nullslast,updated_at.asc` voor
+  gewicht, steeds met `limit=50`.
 - Bijwerken: `POST /rest/v1/rpc/fitness_submit_exercise_scores` met
   `p_display_name` en `p_scores`, een array van uitsluitend
-  `{exercise_key,exercise_name,total_reps}`.
+  `{exercise_key,exercise_name,total_reps,max_weight}`.
 - Stoppen: `POST /rest/v1/rpc/fitness_leave_exercise_scores` zonder parameters.
 
 De `apikey`-header bevat de publieke sleutel. Bij schrijven bevat
 `Authorization` de JWT van de eigen deelnemer. De openbare oefenlijst mag ook
 suggesties in het vrije oefennaamveld aanvullen; de app verstuurt daarvoor geen
 getypte namen of zoekopdrachten.
+
+`max_weight` is een JSON-getal tussen 0 en 2.000 kg; decimalen blijven exact
+bewaard zonder afronding. De waarde is één record per oefening, geen afzonderlijke
+set of trainingsdatum. Een expliciete 0 is geldig en vervangt een eerder record
+wanneer het lokale logboek wordt gecorrigeerd. Een ontbrekend veld van een oudere
+client behoudt het bestaande gewichtrecord of `NULL`; `null`, tekst, negatieve
+waarden en waarden boven 2.000 worden geweigerd. Ook lagere geldige nieuwe
+records vervangen de vorige waarde: het is de actuele samenvatting van het
+lokale logboek, geen serverarchief van verwijderde trainingen.
 
 Die aanvulling bevat maximaal 1.000 openbare oefennamen, alfabetisch opgehaald
 en daarna lokaal gefilterd. Het is een begrensde momentopname; bij een zeer grote
@@ -125,8 +147,9 @@ verzoeken als alias en scores gelijk zijn. Netwerkfouten blokkeren lokaal opslaa
 niet. Opnieuw proberen gebeurt bij openen, terugkeren naar de app, terugkeer van
 verbinding of een volgende wijziging.
 
-Het blijft een speelse ranglijst met zelf ingevulde scores. Gewicht en uitvoering
-zijn niet vergelijkbaar en scores kunnen worden gemanipuleerd. De ingebouwde
+Het blijft een speelse ranglijst met zelf ingevulde scores. Materiaal, uitvoering
+en lichaamsgewicht maken gewichtrecords niet onderling verifieerbaar; scores
+kunnen worden gemanipuleerd. De ingebouwde
 Supabase-aanmeldlimiet blijft aan. Een grotere publieke uitrol vraagt aanvullende
 misbruikbescherming. Als CAPTCHA in Supabase wordt aangezet, moet ook een
 CAPTCHA-token aan de aanmeldflow worden toegevoegd; deze versie laadt geen

@@ -1,7 +1,8 @@
-// Na het opgeven van een naam worden alleen alias, ranglijstoefeningen en samengevoegde reps gedeeld.
+// Na naambevestiging worden alleen alias, ranglijstoefeningen, totale reps en zwaarste gewicht gedeeld.
 import { EXERCISE_CATALOG, normalizeExerciseName, resolveRankingExercise } from './exercise-catalog.js';
 import { getExerciseSets } from './data.js';
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const SCORE_MODE = 'exercise-v2';
 
 export function normalizeDisplayName(value) {
   const name = typeof value === 'string' ? value.trim().replace(/\s+/gu, ' ') : '';
@@ -13,6 +14,13 @@ export function normalizeDisplayName(value) {
 
 function score(value) {
   if (!Number.isSafeInteger(value) || value < 0) throw new Error('Deze totaalscore is ongeldig.');
+  return value;
+}
+
+function maxWeight(value) {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0 || value > 2000) {
+    throw new Error('Dit zwaarste gewicht is ongeldig.');
+  }
   return value;
 }
 
@@ -49,8 +57,11 @@ export function aggregateExerciseScores(state, today) {
   for (const [key, exercises] of workouts) {
     for (const [index, exercise] of exercises.entries()) {
       const { key: exerciseKey, label } = resolveRankingExercise(latest.get(identity(key, exercise, index)));
-      const item = totals.get(exerciseKey) ?? { exercise_key: exerciseKey, exercise_name: label, total_reps: 0 };
-      item.total_reps = score(item.total_reps + exerciseReps(exercise));
+      const item = totals.get(exerciseKey) ?? { exercise_key: exerciseKey, exercise_name: label, total_reps: 0, max_weight: 0 };
+      for (const set of getExerciseSets({ weight: 0, ...exercise })) {
+        item.total_reps = score(item.total_reps + set.reps);
+        if (set.reps > 0) item.max_weight = Math.max(item.max_weight, maxWeight(set.weight));
+      }
       totals.set(exerciseKey, item);
     }
   }
@@ -67,8 +78,10 @@ function checkedScores(values) {
     const known = EXERCISE_CATALOG.find(item => item.key === value.exercise_key);
     if (!known && value.exercise_key !== `custom:${normalizeExerciseName(value.exercise_name)}`) throw new Error('Deze ranglijstoefening is ongeldig.');
     const resolved = resolveRankingExercise({ name: value.exercise_name, ...(known ? { rankingKey: known.key } : {}) });
-    const item = totals.get(resolved.key) ?? { exercise_key: resolved.key, exercise_name: resolved.label, total_reps: 0 };
-    item.total_reps = score(item.total_reps + score(value.total_reps)); totals.set(resolved.key, item);
+    const item = totals.get(resolved.key) ?? { exercise_key: resolved.key, exercise_name: resolved.label, total_reps: 0, max_weight: 0 };
+    item.total_reps = score(item.total_reps + score(value.total_reps));
+    item.max_weight = Math.max(item.max_weight, maxWeight(value.max_weight));
+    totals.set(resolved.key, item);
   }
   return [...totals.values()].sort((a, b) => a.exercise_key.localeCompare(b.exercise_key));
 }
@@ -118,7 +131,7 @@ export function createLeaderboardClient({ url, anonKey, fetchImpl = globalThis.f
       participant = { version: 1, consented: true, name: normalizeDisplayName(saved.name),
         session: restoredSession, requiresRejoin: saved.requiresRejoin === true || (!!saved.session && !restoredSession),
         active: saved.active !== false, pendingLeave: saved.pendingLeave === true,
-        scoreMode: saved.scoreMode === 'exercise-v1' ? saved.scoreMode : null,
+        scoreMode: ['exercise-v1', SCORE_MODE].includes(saved.scoreMode) ? saved.scoreMode : null,
         lastFingerprint: typeof saved.lastFingerprint === 'string' ? saved.lastFingerprint : null,
         lastTotal: Number.isSafeInteger(saved.lastTotal) ? saved.lastTotal : null,
         lastName: typeof saved.lastName === 'string' ? saved.lastName : null };
@@ -190,7 +203,7 @@ export function createLeaderboardClient({ url, anonKey, fetchImpl = globalThis.f
   }
   async function publish(values, force = false) {
     const scores = checkedScores(values);
-    if (!participant || participant.scoreMode !== 'exercise-v1' || participant.active === false || participant.pendingLeave || !config) return { skipped: true };
+    if (!participant || participant.scoreMode !== SCORE_MODE || participant.active === false || participant.pendingLeave || !config) return { skipped: true };
     const fingerprint = JSON.stringify({ name: participant.name, scores });
     if (!force && participant.lastFingerprint === fingerprint) return { skipped: true };
     let identity = await session();
@@ -223,7 +236,7 @@ export function createLeaderboardClient({ url, anonKey, fetchImpl = globalThis.f
   }
   return {
     configured: !!config,
-    isJoined: () => participant !== null && participant.scoreMode === 'exercise-v1' && participant.active !== false,
+    isJoined: () => participant !== null && participant.scoreMode === SCORE_MODE && participant.active !== false,
     canStopSharing: () => participant !== null && participant.active !== false,
     hasPendingLeave: () => participant?.pendingLeave === true,
     requiresRejoin: () => participant?.requiresRejoin === true,
@@ -235,7 +248,7 @@ export function createLeaderboardClient({ url, anonKey, fetchImpl = globalThis.f
         const normalized = normalizeDisplayName(name), scores = checkedScores(values);
         persist({ version: 1, consented: true, name: normalized,
           session: participant?.requiresRejoin ? null : participant?.session ?? null,
-          requiresRejoin: false, active: true, pendingLeave: false, scoreMode: 'exercise-v1',
+          requiresRejoin: false, active: true, pendingLeave: false, scoreMode: SCORE_MODE,
           lastName: participant?.lastName ?? null, lastTotal: participant?.lastTotal ?? null,
           lastFingerprint: participant?.lastFingerprint ?? null });
         return publish(scores, true);
@@ -255,15 +268,20 @@ export function createLeaderboardClient({ url, anonKey, fetchImpl = globalThis.f
       if (!Array.isArray(rows) || rows.length > 1000) throw new Error('De ranglijst gaf een ongeldig antwoord.');
       return [...new Map(rows.map(row => { const item = publicExercise(row); return [item.exercise_key, item]; })).values()];
     },
-    async getScores(exerciseKey) {
+    async getScores(exerciseKey, metric = 'reps') {
       if (typeof exerciseKey !== 'string' || !/^(?:ex:|custom:).+$/u.test(exerciseKey) || exerciseKey.length > 4096) throw new Error('Kies een oefening.');
+      if (!['reps', 'weight'].includes(metric)) throw new Error('Kies een geldige highscore.');
       const filter = encodeURIComponent(JSON.stringify(exerciseKey));
       // IN ondersteunt gequote waarden met : , () expliciet; EQ behandelt quotes letterlijk.
-      const rows = await request(`/rest/v1/fitness_exercise_scores?select=exercise_key,exercise_name,display_name,total_reps,updated_at&exercise_key=in.(${filter})&order=total_reps.desc,updated_at.asc&limit=50`);
+      const ordering = metric === 'weight' ? 'max_weight.desc.nullslast' : 'total_reps.desc';
+      const knownWeight = metric === 'weight' ? '&max_weight=not.is.null' : '';
+      const rows = await request(`/rest/v1/fitness_exercise_scores?select=exercise_key,exercise_name,display_name,total_reps,max_weight,updated_at&exercise_key=in.(${filter})${knownWeight}&order=${ordering},updated_at.asc&limit=50`);
       if (!Array.isArray(rows) || rows.length > 50) throw new Error('De ranglijst gaf een ongeldig antwoord.');
       return rows.map(row => {
         if (row.exercise_key !== exerciseKey) throw new Error('De ranglijst gaf een andere oefening terug.');
+        if (metric === 'weight' && row.max_weight === null) throw new Error('De ranglijst gaf een ongeldig gewicht.');
         return { ...publicExercise(row), display_name: normalizeDisplayName(row.display_name), total_reps: score(row.total_reps),
+          max_weight: row.max_weight === null ? null : maxWeight(row.max_weight),
           updated_at: typeof row.updated_at === 'string' ? row.updated_at : '' };
       });
     },

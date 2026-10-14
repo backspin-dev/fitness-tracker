@@ -7,13 +7,15 @@ de app licht en de privacyregels hieronder intact.
 
 - Het volledige trainingslogboek en alle herstelkopieën blijven in IndexedDB
   op het toestel. Geen online trainingsdatabase, trainingssynchronisatie of
-  online back-up. Trainingsdatums, gewichten, afzonderlijke sets/reps en
-  lichaamsmetingen mogen nooit worden verstuurd.
+  online back-up. Trainingsdatums, afzonderlijke gewichten/sets/reps en
+  lichaamsmetingen mogen nooit worden verstuurd. Alleen het hieronder beschreven
+  maximale oefengewicht is een openbare aggregatie.
 - De Supabase-ranglijst hoort bij de app. Vraag bij de eerste start één openbare
-  naam en leg daar duidelijk uit dat naam, oefenlabels en totalen openbaar worden.
+  naam en leg daar duidelijk uit dat naam, oefenlabels, reptotalen en maximaal
+  oefengewicht openbaar worden.
   Na die eenmalige start worden scores automatisch bijgewerkt. Publiceer alleen
   oefensleutel, canonieke catalogusnaam of genormaliseerde eigen oefennaam en
-  totaal reps, met de technische anonieme identiteit en bijwerkdatum die nodig
+  totaal reps en maximaal gewicht uit sets met minstens één rep, met de technische anonieme identiteit en bijwerkdatum die nodig
   zijn voor de score. Geen gebruikerslogin met e-mail of wachtwoord toevoegen.
   Anonieme sessies staan apart in lokale browseropslag en mogen nooit in logboekexports of lokale herstelkopieën komen.
 - Namen zijn niet uniek. Scores zijn zelf gerapporteerd. Beloof geen verificatie
@@ -157,7 +159,11 @@ de app licht en de privacyregels hieronder intact.
 - `leaderboard.js`, `leaderboard-ui.js` en `leaderboard-config.js`: automatische
   alias/scoreverbinding per oefening, eenmalige naamstart en publieke configuratie.
   Ranglijsttotalen tellen losse set-reps per canonieke oefening op over onderdelen
-  heen; lokale statistieken blijven de eigen oefening- en onderdeel-IDs gebruiken.
+  heen; max_weight is het hoogste ingevoerde gewicht uit sets met reps > 0.
+  Toon twee compacte keuzes Meeste reps/Zwaarste gewicht. Oude onbekende gewichten
+  blijven NULL; oudere clients zonder veld mogen een bekend maximum niet wissen.
+  De uitgebreidere openbaarheidsmelding wordt eenmaal bevestigd met dezelfde
+  naam/identiteit voordat een bestaande deelnemer gewicht publiceert; lokale statistieken blijven de eigen oefening- en onderdeel-IDs gebruiken.
   `supabase/schema.sql` bevat toegangsregels en scorefuncties;
   `supabase/README.md` beschrijft installatie. Netwerkfouten mogen lokaal opslaan
   nooit blokkeren. Een oude toestemming voor alleen een totaalscore mag geen
@@ -173,8 +179,16 @@ de app licht en de privacyregels hieronder intact.
   lokale identiteit. Zonder login is een volledig nieuwe identiteit niet te herkennen.
 - `sw.js`: offline app-shell. Verhoog `CACHE_VERSION` als een gecachet bestand
   verandert. Cache uitsluitend openbare appbestanden, nooit Supabase-antwoorden
-  of sessietokens. Installeer updates pas na toestemming in de app of het sluiten
-  van oude vensters; onderbreek nooit ongemerkt lopende invoer.
+  of sessietokens. Een volledig gedownloade update is verplicht via een blokkerend
+  scherm met Nu bijwerken, zonder Later/Annuleren/Escape. update-ui.js controleert
+  bij openen, terugkeren, online komen en elke vijf minuten zichtbaar. Laat een
+  lopend formulier/import/export/sleepbeweging eerst afronden; voorkom nieuwe
+  handelingen. Wacht op alle lokale writes en controleer expliciet failed voordat
+  je activeert of herlaadt, ook bij controllerchange vanuit een ander venster.
+  Opslagfouten houden het venster open met retry en een handmatige JSON-nooduitgang;
+  geen automatische retrylus. Eerste installatie is geen update. Offline kun je
+  alleen reeds gedownloade updates ontdekken/toepassen. Bestaande oude clients
+  moeten dit gedrag eenmalig installeren; beloof geen simultane versies overal.
 - `manifest.webmanifest` en de iconen: installatie op het beginscherm.
 - GitHub Pages publiceert de hoofdmap van `main`; een workflow is niet nodig.
 
@@ -214,6 +228,7 @@ of dubbele navigatie tonen. Controleer compacte knoppen, actieve pagina en
 bereikbare labels op mobiel. Controleer tijdens het typen, selecteren en wissen
 van oefennamen dat de velden en bewaaractie niet opspringen, ook met het mobiele
 toetsenbord en bij geen resultaten.
-Controleer offline openen na eerste installatie, de updateknop en werking onder
+Controleer offline openen na eerste installatie, de verplichte updatepoort (ook
+met een geopend formulier, lokale opslagfout en ander tabblad) en werking onder
 een subdirectory. Een andere browser begint met een leeg logboek. Gebruik geen
 echte gebruikersgegevens in tests of openbare voorbeelden.

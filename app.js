@@ -8,6 +8,7 @@ import { setupExerciseNames } from './exercise-names-ui.js';
 import { setupNavigation } from './navigation.js';
 import { createExerciseVideo, stopExerciseVideos } from './exercise-video-ui.js';
 import { createExerciseSets, parseSetValue, setupExerciseOrder } from './workout-ui.js';
+import { setupRequiredUpdates } from './update-ui.js';
 
 const $ = id => document.getElementById(id);
 function groupInfo(id = split) { return state.groups.find(group => group.id === id); }
@@ -15,12 +16,12 @@ const dateFormat = new Intl.DateTimeFormat('nl-NL', { day: 'numeric', month: 'lo
 let state = createState(), split = 'push', date = localDate(), loaded = false;
 let savedState = state;
 let saveQueue = Promise.resolve(), revision = 0, pending = 0, failed = false;
-let editId = null, toastTimer, waitingWorker = null, releaseEditor = null;
-let knownToday = localDate(), importing = false;
+let editId = null, toastTimer, releaseEditor = null;
+let knownToday = localDate(), importing = false, importReading = false;
 let exporting = false;
 let ownsEditor = false, recoverableLoadError = false;
-let workoutOrder = null;
-const navigation = setupNavigation({ canNavigate: () => !importing && !exporting && !document.querySelector('dialog[open]') });
+let workoutOrder = null, updates = null, updateInput = null, appInitialized = false, updateRefreshTimer;
+const navigation = setupNavigation({ canNavigate: () => !importing && !importReading && !exporting && !updates?.isRequired() && !document.querySelector('dialog[open]') });
 
 function textNode(tag, text, className) {
   const node = document.createElement(tag);
@@ -64,7 +65,7 @@ function queueSave() {
       showError('Opslaan lukt niet. Je wijzigingen staan nog op dit scherm. Maak via Instellingen een back-up voordat je de app sluit. Probeer daarna opnieuw.');
     }
     return false;
-  }).finally(() => { pending--; });
+  }).finally(() => { pending--; refreshRequiredUpdate(); });
   return saveQueue;
 }
 function changeWorkout(workout, rerender = true, base = state) {
@@ -263,12 +264,13 @@ async function exportFile() {
     downloadFile();
   }
   } catch { $('backup-message').textContent = 'Exporteren is niet gelukt. Probeer het opnieuw.'; }
-  finally { exporting = false; $('export-backup').disabled = false; }
+  finally { exporting = false; $('export-backup').disabled = false; refreshRequiredUpdate(); }
 }
 $('import-backup').addEventListener('click', () => { if (loaded) $('import-file').click(); });
 $('import-file').addEventListener('change', async event => {
   const file = event.target.files[0]; event.target.value = ''; if (!file) return;
   let importedSuccessfully = false;
+  importReading = true;
   try {
     if (file.size > 7 * 1024 * 1024) throw new Error('Het bestand is groter dan 7 MB.');
     const imported = validateState(JSON.parse(await file.text()));
@@ -288,16 +290,9 @@ $('import-file').addEventListener('change', async event => {
     importedSuccessfully = true; toast('Je oefeningen staan klaar.');
   } catch (error) { $('backup-message').textContent = `Import niet uitgevoerd. ${error instanceof SyntaxError ? 'Dit is geen geldig JSON-bestand.' : error.message}`; }
   finally {
-    importing = false; $('main').inert = false; $('settings-page').inert = false;
+    importing = false; importReading = false; $('main').inert = false; $('settings-page').inert = false;
     if (importedSuccessfully) { render(); progress.refresh(); navigation.open('training'); }
-    await recovery.refresh(); leaderboard.onSaved();
-  }
-});
-$('update-button').addEventListener('click', async () => {
-  await saveQueue; if (failed || !waitingWorker) return;
-  if (await confirmAction('App bijwerken?', 'Je opgeslagen trainingen blijven bewaard. De app wordt opnieuw geopend.', 'Bijwerken')) {
-    navigator.serviceWorker.addEventListener('controllerchange', () => location.reload(), { once: true });
-    waitingWorker.postMessage({ type: 'SKIP_WAITING' });
+    await recovery.refresh(); leaderboard.onSaved(); refreshRequiredUpdate();
   }
 });
 window.addEventListener('beforeunload', event => { if (pending || failed || importing) { event.preventDefault(); event.returnValue = ''; } });
@@ -320,21 +315,33 @@ window.addEventListener('focus', handleNewDay);
 document.querySelectorAll('dialog').forEach(dialog => dialog.addEventListener('close', handleNewDay));
 setInterval(handleNewDay, 60000);
 
-async function prepareOffline() {
-  if (!('serviceWorker' in navigator)) { $('offline-status').textContent = 'Offline gebruik niet beschikbaar'; return; }
-  try {
-    const registration = await navigator.serviceWorker.register('./sw.js', { scope: './' });
-    const offerUpdate = () => { waitingWorker = navigator.serviceWorker.controller ? registration.waiting : null; $('update-button').hidden = !waitingWorker; };
-    offerUpdate();
-    registration.addEventListener('updatefound', () => {
-      const worker = registration.installing;
-      worker?.addEventListener('statechange', () => { if (['installed', 'activated'].includes(worker.state)) offerUpdate(); });
-    });
-    await navigator.serviceWorker.ready;
-    offerUpdate();
-    $('offline-status').textContent = 'Klaar voor offline gebruik';
-  } catch { $('offline-status').textContent = 'Offline laden is nog niet gelukt'; }
+function hasBodyWeightDraft() {
+  if (!navigation.isCurrent('statistieken') || $('progress-body').hidden) return false;
+  const raw = $('body-weight').value.trim(), existing = state.bodyWeights[$('body-date').value];
+  if (!raw) return existing !== undefined;
+  return !/^\d{1,3}(?:[.,]\d{1,2})?$/.test(raw) || Number(raw.replace(',', '.')) !== existing;
 }
+function canPromptUpdate() {
+  return appInitialized && !pending && !importing && !importReading && !exporting &&
+    !document.querySelector('dialog[open]:not(#required-update-dialog)') &&
+    !$('exercise-list').classList.contains('is-reordering') && !hasBodyWeightDraft() &&
+    (!updateInput || document.activeElement !== updateInput);
+}
+function refreshRequiredUpdate() {
+  clearTimeout(updateRefreshTimer);
+  updateRefreshTimer = setTimeout(() => updates?.refresh(), 0);
+}
+// Maak een bestaande invoer eerst af; start geen nieuwe handeling zodra de update klaarstaat.
+document.addEventListener('click', event => {
+  if (!updates?.isRequired()) return;
+  if (event.target.closest('dialog[open]') || event.target === updateInput ||
+      (event.target.closest('#body-form') && hasBodyWeightDraft())) return;
+  event.preventDefault(); event.stopImmediatePropagation(); refreshRequiredUpdate();
+}, true);
+for (const event of ['focusout', 'input', 'submit', 'pointerup', 'pointercancel']) {
+  document.addEventListener(event, refreshRequiredUpdate, true);
+}
+$('update-backup').addEventListener('click', exportFile);
 function changeState(next, options = {}) {
   if (!loaded || importing) return Promise.resolve(false);
   state = validateState(next);
@@ -345,9 +352,9 @@ function changeState(next, options = {}) {
 }
 const groups = setupGroups({ getState: () => state, canEdit: () => loaded && !importing, changeState, confirmAction, toast });
 const progress = setupProgress({ getState: () => state, canEdit: () => loaded && !importing, changeState, confirmAction, toast, navigation });
-const leaderboard = setupLeaderboard({ getState: () => savedState, canEdit: () => loaded && !importing, toast, navigation });
+const leaderboard = setupLeaderboard({ getState: () => savedState, canEdit: () => loaded && !importing && (!updates?.isRequired() || !!$('leaderboard-name-dialog')?.open), toast, navigation });
 const exerciseNames = setupExerciseNames({ loadSuggestions: () => leaderboard.getExerciseSuggestions() });
-workoutOrder = setupExerciseOrder({ list: $('exercise-list'), canEdit: () => loaded && !importing, onMove: moveExercise, announce: () => {} });
+workoutOrder = setupExerciseOrder({ list: $('exercise-list'), canEdit: () => loaded && !importing && (!updates?.isRequired() || $('exercise-list').classList.contains('is-reordering')), onMove: moveExercise, announce: () => {} });
 for (const page of ['statistieken', 'ranglijst', 'gegevens']) navigation.onOpen(page, () => {
   workoutOrder.cancel(); stopExerciseVideos($('main'));
 });
@@ -367,9 +374,25 @@ const recovery = setupRecovery({ canEdit: () => ownsEditor && (loaded || recover
   } finally {
     importing = false; $('main').inert = false; $('settings-page').inert = false;
     if (restoredSuccessfully) { render(); progress.refresh(); }
-    leaderboard.onSaved();
+    leaderboard.onSaved(); refreshRequiredUpdate();
   }
 } });
+
+updates = setupRequiredUpdates({
+  canPrompt: canPromptUpdate,
+  onRequired() {
+    const focused = document.activeElement;
+    updateInput = focused?.matches('input,textarea,select') ? focused : null;
+    leaderboard.onSaved();
+  },
+  onOfflineStatus: text => { $('offline-status').textContent = text; },
+  beforeUpdate: async () => {
+    await saveQueue;
+    if (failed && loaded) await queueSave();
+    await saveQueue;
+    return !failed && !pending && !importing && !importReading && !exporting;
+  },
+});
 
 async function init() {
   render();
@@ -405,6 +428,6 @@ async function init() {
     setStatus('Opslag niet beschikbaar', true); $('import-backup').disabled = true; $('export-backup').disabled = true;
     await recovery.refresh();
   }
-  navigation.start(); leaderboard.onSaved(); prepareOffline();
+  appInitialized = true; navigation.start(); leaderboard.onSaved(); void updates.start();
 }
 init();

@@ -3,9 +3,10 @@ import assert from 'node:assert/strict';
 import { totalSavedReps, aggregateExerciseScores, normalizeDisplayName, createLeaderboardClient } from '../leaderboard.js';
 import { renderLeaderboardRows, setupLeaderboard } from '../leaderboard-ui.js';
 import { setupProgress } from '../progress-ui.js';
+import { SUPABASE_URL } from '../leaderboard-config.js';
 
 const url = 'https://example.supabase.co', anonKey = 'sb_publishable_test';
-const S = total => [{ exercise_key: 'ex:squat', exercise_name: 'Squat', total_reps: total }];
+const S = (total, weight = 0) => [{ exercise_key: 'ex:squat', exercise_name: 'Squat', total_reps: total, max_weight: weight }];
 const userId = '11111111-1111-4111-8111-111111111111';
 const identity = (overrides = {}) => ({ access_token: 'access-1', refresh_token: 'refresh-1', expires_at: 5000, user: { id: userId }, ...overrides });
 const memory = () => { const values = new Map(); return { getItem: key => values.get(key) ?? null, setItem: (key, value) => values.set(key, value), values }; };
@@ -48,10 +49,10 @@ test('exercise scores merge known aliases across groups and IDs while retaining 
   } };
   const before = JSON.stringify(input), result = aggregateExerciseScores(input, '2026-10-02');
   assert.deepEqual(result, [
-    { exercise_key: 'ex:bench-press', exercise_name: 'Bench press', total_reps: 20 },
-    { exercise_key: 'ex:bench-press-machine', exercise_name: 'Bench press machine', total_reps: 40 },
-    { exercise_key: 'ex:dumbbell-bench-press', exercise_name: 'Dumbbell bench press', total_reps: 30 },
-    { exercise_key: 'ex:squat', exercise_name: 'Squat', total_reps: 46 },
+    { exercise_key: 'ex:bench-press', exercise_name: 'Bench press', total_reps: 20, max_weight: 0 },
+    { exercise_key: 'ex:bench-press-machine', exercise_name: 'Bench press machine', total_reps: 40, max_weight: 0 },
+    { exercise_key: 'ex:dumbbell-bench-press', exercise_name: 'Dumbbell bench press', total_reps: 30, max_weight: 0 },
+    { exercise_key: 'ex:squat', exercise_name: 'Squat', total_reps: 46, max_weight: 0 },
   ]);
   assert.equal(JSON.stringify(input), before);
 });
@@ -64,8 +65,8 @@ test('exercise scores sum each actual set and keep private set values out of the
   } };
   const before = JSON.stringify(input), scores = aggregateExerciseScores(input, '2026-10-02');
   assert.deepEqual(scores, [
-    { exercise_key: 'ex:bench-press', exercise_name: 'Bench press', total_reps: 36 },
-    { exercise_key: 'ex:squat', exercise_name: 'Squat', total_reps: 37 },
+    { exercise_key: 'ex:bench-press', exercise_name: 'Bench press', total_reps: 36, max_weight: 0 },
+    { exercise_key: 'ex:squat', exercise_name: 'Squat', total_reps: 37, max_weight: 30 },
   ]);
   assert.equal(totalSavedReps(input, '2026-10-02'), 73);
   assert.equal(JSON.stringify(input), before);
@@ -81,6 +82,42 @@ test('exercise scores sum each actual set and keep private set values out of the
   }
 });
 
+test('heaviest weight is one performed set across saved history, never a sum or a future/routine value', () => {
+  const input = { routines: { legs: [{ name: 'Squat', weight: 2000, reps: 12 }] }, sessions: {
+    '2026-10-01:legs': [{ id: 'a', name: 'Squat', weight: 25.125, reps: 12, sets: 3, setValues: [null, { weight: 60, reps: 6 }, { weight: 1000, reps: 0 }] }],
+    '2026-10-02:full': [{ id: 'b', name: 'Squats', weight: 40, reps: 8 }, { id: 'c', name: 'Bench press machine', weight: 80, reps: 10 }],
+    '2026-10-03:legs': [{ id: 'a', name: 'Squat', weight: 2000, reps: 12 }],
+  } };
+  const before = JSON.stringify(input), scores = aggregateExerciseScores(input, '2026-10-02');
+  assert.deepEqual(scores, [
+    { exercise_key: 'ex:bench-press-machine', exercise_name: 'Bench press machine', total_reps: 10, max_weight: 80 },
+    { exercise_key: 'ex:squat', exercise_name: 'Squat', total_reps: 26, max_weight: 60 },
+  ]);
+  assert.equal(JSON.stringify(input), before);
+  input.sessions['2026-10-01:legs'][0].setValues[1].weight = 20;
+  input.sessions['2026-10-02:full'].shift();
+  assert.equal(aggregateExerciseScores(input, '2026-10-02').find(row => row.exercise_key === 'ex:squat').max_weight, 25.125, 'Editing/removing the old record recalculates the real maximum.');
+});
+
+test('a weight-only change uploads again; canonical duplicate aliases use their maximum weight', async () => {
+  const { client, calls } = fixture([reply(identity()), reply(null), reply(null)]);
+  await client.join('Example', [...S(20, 25.125), { exercise_key: 'custom:squats', exercise_name: 'Squats', total_reps: 10, max_weight: 40 }]);
+  assert.deepEqual(JSON.parse(calls[1].body).p_scores, S(30, 40));
+  assert.deepEqual(await client.sync(S(30, 40)), { skipped: true });
+  await client.sync(S(30, 42.5));
+  assert.deepEqual(JSON.parse(calls[2].body).p_scores, S(30, 42.5));
+  assert.equal(client.getLastTotal(), 30);
+});
+
+test('invalid public aggregate weights are rejected before any identity or network write', async () => {
+  const { client, calls } = fixture([]);
+  for (const weight of [undefined, null, '25', -1, 2000.1, Infinity, NaN]) {
+    await assert.rejects(client.join('Example', [{ ...S(20)[0], max_weight: weight }]), /gewicht/);
+  }
+  assert.equal(client.isJoined(), false);
+  assert.equal(calls.length, 0);
+});
+
 test('the latest saved identity mapping classifies its full history without affecting another group', () => {
   const input = { sessions: {
     '2026-10-01:legs': [{ id: 'a', name: 'My old squat label', reps: 10, sets: 3 }],
@@ -89,8 +126,8 @@ test('the latest saved identity mapping classifies its full history without affe
     '2026-10-03:legs': [{ id: 'a', name: 'Deadlift', reps: 10, sets: 3 }],
   } };
   assert.deepEqual(aggregateExerciseScores(input, '2026-10-02'), [
-    { exercise_key: 'ex:bench-press', exercise_name: 'Bench press', total_reps: 24 },
-    { exercise_key: 'ex:squat', exercise_name: 'Squat', total_reps: 66 },
+    { exercise_key: 'ex:bench-press', exercise_name: 'Bench press', total_reps: 24, max_weight: 0 },
+    { exercise_key: 'ex:squat', exercise_name: 'Squat', total_reps: 66, max_weight: 0 },
   ]);
   input.sessions['2026-10-02:legs'][0].rankingKey = 'ex:front-squat';
   assert.equal(aggregateExerciseScores(input, '2026-10-02')[1].exercise_key, 'ex:front-squat');
@@ -167,10 +204,10 @@ test('changing a name keeps the same anonymous identity and unchanged scores ski
 
 test('canonical score fingerprints ignore array order but notice changed exercises with the same grand total', async () => {
   const { client, calls } = fixture([reply(identity()), reply(null), reply(null)]);
-  const scores = [...S(36), { exercise_key: 'ex:bench-press', exercise_name: 'Bench press', total_reps: 24 }];
+  const scores = [...S(36), { exercise_key: 'ex:bench-press', exercise_name: 'Bench press', total_reps: 24, max_weight: 0 }];
   await client.join('Example', scores);
   assert.deepEqual(await client.sync([...scores].reverse()), { skipped: true });
-  await client.sync([...S(24), { exercise_key: 'ex:bench-press', exercise_name: 'Bench press', total_reps: 36 }]);
+  await client.sync([...S(24), { exercise_key: 'ex:bench-press', exercise_name: 'Bench press', total_reps: 36, max_weight: 0 }]);
   assert.equal(calls.length, 3);
   assert.equal(JSON.parse(calls[2].body).p_scores.find(item => item.exercise_key === 'ex:squat').total_reps, 24);
 });
@@ -188,7 +225,27 @@ test('old global profiles preserve identity but confirm a name once before per-e
   assert.equal(calls.length, 1);
   assert.equal(calls[0].headers.Authorization, 'Bearer access-1');
   assert.equal(client.isJoined(), true);
-  assert.equal(JSON.parse([...storage.values.values()][0]).scoreMode, 'exercise-v1');
+  assert.equal(JSON.parse([...storage.values.values()][0]).scoreMode, 'exercise-v2');
+});
+
+test('reps-only profiles confirm the expanded public notice before any aggregate weight is uploaded', async () => {
+  const storage = memory(), previous = { version: 1, consented: true, name: 'Existing name', session: identity(), active: true,
+    scoreMode: 'exercise-v1', lastTotal: 36, lastName: 'Existing name', lastFingerprint: 'previous reps-only fingerprint' };
+  storage.setItem(`fitness-tracker:leaderboard:v1:${url}`, JSON.stringify(previous));
+  const { client, calls } = fixture([reply(null)], { storage });
+  assert.equal(client.isJoined(), false);
+  assert.equal(client.getDisplayName(), 'Existing name');
+  assert.deepEqual(await client.sync(S(36, 60)), { skipped: true });
+  assert.equal(calls.length, 0);
+  assert.deepEqual(JSON.parse([...storage.values.values()][0]), previous, 'Reading/upgrading the app changes no saved name or consent.');
+  await client.join('Existing name', S(36, 60));
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].headers.Authorization, 'Bearer access-1');
+  assert.deepEqual(JSON.parse(calls[0].body).p_scores, S(36, 60));
+  const saved = JSON.parse([...storage.values.values()][0]);
+  assert.equal(saved.scoreMode, 'exercise-v2');
+  assert.deepEqual(saved.session, previous.session);
+  assert.equal(client.isJoined(), true);
 });
 
 test('legacy API profiles can be hidden without publishing exercise names', async () => {
@@ -208,7 +265,7 @@ test('submission payload contains only alias and per-exercise aggregates, never 
   const body = JSON.parse(calls[1].body);
   assert.deepEqual(body, { p_display_name: 'Example', p_scores: S(36) });
   assert(!calls[1].body.includes('private'));
-  await assert.rejects(client.join('Example', [{ exercise_key: 'ex:made-up', exercise_name: 'Squat', total_reps: 36 }]), /ranglijstoefening/);
+  await assert.rejects(client.join('Example', [{ exercise_key: 'ex:made-up', exercise_name: 'Squat', total_reps: 36, max_weight: 0 }]), /ranglijstoefening/);
 });
 
 test('valid emoji, Unicode case expansion and NFKC-expanded labels can publish together', async () => {
@@ -356,14 +413,38 @@ test('stopping after signup could not start does not create a new backend identi
 
 test('public ranking reads only safe columns with no user JWT and preserves duplicate aliases', async () => {
   const scores = [
-    { exercise_key: 'ex:squat', exercise_name: 'Squat', display_name: 'Same name', total_reps: 100, updated_at: '2026-10-14T12:00:00Z' },
-    { exercise_key: 'ex:squat', exercise_name: 'Squat', display_name: 'Same name', total_reps: 90, updated_at: '2026-10-14T13:00:00Z' },
+    { exercise_key: 'ex:squat', exercise_name: 'Squat', display_name: 'Same name', total_reps: 100, max_weight: null, updated_at: '2026-10-14T12:00:00Z' },
+    { exercise_key: 'ex:squat', exercise_name: 'Squat', display_name: 'Same name', total_reps: 90, max_weight: 25.125, updated_at: '2026-10-14T13:00:00Z' },
   ];
   const { client, calls } = fixture([reply(scores)]);
   assert.deepEqual(await client.getScores('ex:squat'), scores);
-  assert.match(calls[0].url, /select=exercise_key,exercise_name,display_name,total_reps,updated_at&exercise_key=in\.\(%22ex%3Asquat%22\)&order=total_reps.desc,updated_at.asc&limit=50$/);
+  assert.match(calls[0].url, /select=exercise_key,exercise_name,display_name,total_reps,max_weight,updated_at&exercise_key=in\.\(%22ex%3Asquat%22\)&order=total_reps.desc,updated_at.asc&limit=50$/);
   assert.equal(calls[0].headers.Authorization, undefined);
   assert.equal(client.isJoined(), false);
+});
+
+test('weight highscores select only known weights, retain decimals and use a different server order', async () => {
+  const scores = [
+    { ...S(20, 25.125)[0], display_name: 'Example', updated_at: '2026-10-14T12:00:00Z' },
+    { ...S(100, 0)[0], display_name: 'Bodyweight', updated_at: '2026-10-14T13:00:00Z' },
+  ];
+  const { client, calls } = fixture([reply(scores)]);
+  assert.deepEqual(await client.getScores('ex:squat', 'weight'), scores);
+  const query = new URL(calls[0].url).searchParams;
+  assert.equal(query.get('order'), 'max_weight.desc.nullslast,updated_at.asc');
+  assert.equal(query.get('max_weight'), 'not.is.null');
+  assert.equal(query.get('select'), 'exercise_key,exercise_name,display_name,total_reps,max_weight,updated_at');
+  assert.equal(calls[0].headers.Authorization, undefined);
+  await assert.rejects(client.getScores('ex:squat', 'weight&active=false'), /highscore/);
+  assert.equal(calls.length, 1);
+});
+
+test('unknown or invalid server weights never become fabricated weight records', async () => {
+  const row = { ...S(20)[0], display_name: 'Example' };
+  const { client } = fixture([reply([{ ...row, max_weight: null }]), reply([{ ...row, max_weight: null }]), reply([{ ...row, max_weight: 2001 }])]);
+  assert.equal((await client.getScores('ex:squat'))[0].max_weight, null);
+  await assert.rejects(client.getScores('ex:squat', 'weight'), /gewicht/);
+  await assert.rejects(client.getScores('ex:squat'), /gewicht/);
 });
 
 test('exercise suggestions are public, deduplicated by key and do not submit a search query', async () => {
@@ -422,14 +503,17 @@ test('public names render as safe text, never HTML', () => {
     set innerHTML(value) { throw new Error(`Unsafe HTML: ${value}`); }
   }
   const document = { createElement: tag => new Element(tag, document) }, container = document.createElement('div');
-  renderLeaderboardRows(container, [{ display_name: '<img src=x onerror=alert(1)>', total_reps: 123 }]);
+  renderLeaderboardRows(container, [{ display_name: '<img src=x onerror=alert(1)>', total_reps: 123, max_weight: 0 }]);
   assert.equal(container.children[0].children[0].textContent, '1. <img src=x onerror=alert(1)>');
   assert.equal(container.children[0].children[1].textContent, '123 reps');
+  renderLeaderboardRows(container, [{ display_name: '<b>Same name</b>', max_weight: 42.5 }], 'weight');
+  assert.equal(container.children[0].children[0].textContent, '1. <b>Same name</b>');
+  assert.equal(container.children[0].children[1].textContent, '42,5 kg');
   renderLeaderboardRows(container, []);
   assert.match(container.children[0].textContent, /Nog geen scores/);
 });
 
-function nameUiFixture({ writable = true, storageFails = false } = {}) {
+function nameUiFixture({ writable = true, storageFails = false, state = { sessions: {} }, responses = [], savedProfile } = {}) {
   const original = new Map(['document', 'localStorage', 'fetch', 'addEventListener', 'setTimeout', 'clearTimeout'].map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
   const ids = new Map(), values = new Map(), requests = [], toasts = [];
   let editable = writable;
@@ -454,7 +538,12 @@ function nameUiFixture({ writable = true, storageFails = false } = {}) {
   const content = document.createElement('main'); content.id = 'app-content'; document.body.append(content);
   for (const id of ['edit-player-name', 'leaderboard-button', 'progress-button']) { const button = document.createElement('button'); button.id = id; document.body.append(button); }
   const storage = { getItem: key => values.get(key) ?? null, setItem(key, value) { if (storageFails) throw new Error('storage denied'); values.set(key, value); } };
-  for (const [key, value] of Object.entries({ document, localStorage: storage, fetch: async (...args) => { requests.push(args); throw new Error('offline'); }, addEventListener() {}, setTimeout: () => 1, clearTimeout() {} })) {
+  if (savedProfile) values.set(`fitness-tracker:leaderboard:v1:${SUPABASE_URL}`, JSON.stringify(savedProfile));
+  const fetch = async (...args) => {
+    requests.push(args); const response = responses.shift();
+    if (!response) throw new Error('offline'); return response;
+  };
+  for (const [key, value] of Object.entries({ document, localStorage: storage, fetch, addEventListener() {}, setTimeout: () => 1, clearTimeout() {} })) {
     Object.defineProperty(globalThis, key, { value, writable: true, configurable: true });
   }
   let currentPage = 'training'; const pageHandlers = new Map();
@@ -462,7 +551,7 @@ function nameUiFixture({ writable = true, storageFails = false } = {}) {
     onOpen(page, handler) { pageHandlers.set(page, handler); }, isCurrent(page) { return currentPage === page; },
     open(page) { currentPage = page; for (const child of content.children) child.hidden = child.attributes['data-app-page'] !== page; pageHandlers.get(page)?.(); },
   };
-  const ui = setupLeaderboard({ getState: () => ({ sessions: {} }), canEdit: () => editable, toast: message => toasts.push(message), navigation });
+  const ui = setupLeaderboard({ getState: () => state, canEdit: () => editable, toast: message => toasts.push(message), navigation });
   return { ui, navigation, document, ids, values, requests, toasts, setEditable(value) { editable = value; }, cleanup() {
     for (const [key, descriptor] of original) { if (descriptor) Object.defineProperty(globalThis, key, descriptor); else delete globalThis[key]; }
   } };
@@ -483,7 +572,7 @@ test('first-use name screen waits for editable load, blocks Escape, stores offli
     await nameDialog.children.find(item => item.tagName === 'form').onsubmit({ preventDefault() {} });
     assert.equal(nameDialog.open, false);
     assert.equal(JSON.parse([...fixture.values.values()][0]).name, 'Example');
-    assert.equal(JSON.parse([...fixture.values.values()][0]).scoreMode, 'exercise-v1');
+    assert.equal(JSON.parse([...fixture.values.values()][0]).scoreMode, 'exercise-v2');
     assert.equal(fixture.requests.length, 1); assert.match(fixture.toasts.at(-1), /verbinding/);
     const viewer = ids.get('leaderboard-page');
     assert.equal(viewer.tagName, 'section'); assert.equal(viewer.attributes['data-app-page'], 'ranglijst');
@@ -508,6 +597,58 @@ test('failed local name storage keeps the required name screen open and never st
     assert.equal(dialog.open, true); assert.equal(fixture.requests.length, 0);
     const error = dialog.children.find(item => item.tagName === 'form').children.find(item => item.className === 'field-error');
     assert.equal(error.hidden, false); assert.match(error.textContent, /toestel/);
+  } finally { fixture.cleanup(); }
+});
+
+test('existing reps-only participants see their retained name and expanded public notice once', () => {
+  const fixture = nameUiFixture({ savedProfile: { version: 1, consented: true, name: 'Existing name', session: identity(), active: true, scoreMode: 'exercise-v1' } });
+  try {
+    fixture.ui.onSaved();
+    const dialog = fixture.ids.get('leaderboard-name-dialog');
+    assert.equal(dialog.open, true);
+    assert.equal(fixture.ids.get('leaderboard-first-name').value, 'Existing name');
+    const notice = dialog.children.find(item => item.className === 'settings-copy');
+    assert.match(notice.textContent, /totale reps en zwaarste gewicht per oefening zijn openbaar/);
+    assert.match(notice.textContent, /volledige trainingslogboek blijft op dit toestel/);
+    assert.equal(fixture.requests.length, 0);
+  } finally { fixture.cleanup(); }
+});
+
+test('the ranking metric switch keeps its exercise, changes summary and server ordering without writing scores', async () => {
+  const bench = { exercise_key: 'ex:bench-press', exercise_name: 'Bench press', total_reps: 24, max_weight: 40, display_name: 'Example' };
+  const squat = { ...S(36, 25.125)[0], display_name: 'Example' };
+  const fixture = nameUiFixture({ state: { sessions: { '2000-01-01:full': [
+    { id: 'bench', name: 'Bench press', weight: 40, reps: 8, sets: 3 },
+    { id: 'squat', name: 'Squat', weight: 25.125, reps: 12, sets: 3 },
+  ] } }, responses: [reply(identity()), reply(null), reply([bench, squat]), reply([bench]), reply([squat]), reply([squat])] });
+  const settle = async () => { for (let index = 0; index < 30; index++) await Promise.resolve(); };
+  try {
+    const { ui, ids, navigation, requests } = fixture;
+    ui.onSaved(); ids.get('leaderboard-first-name').value = 'Example';
+    await ids.get('leaderboard-name-dialog').children.find(item => item.tagName === 'form').onsubmit({ preventDefault() {} });
+    navigation.open('ranglijst'); await settle();
+    const exercise = ids.get('leaderboard-exercise'), rows = ids.get('leaderboard-list');
+    const own = ids.get('leaderboard-page').children.find(item => item.className === 'summary-tile');
+    assert.equal(exercise.value, 'ex:bench-press');
+    assert.equal(own.children[0].textContent, '24 reps');
+    assert.equal(rows.children[0].children[1].textContent, '24 reps');
+    exercise.value = 'ex:squat'; exercise.onchange(); await settle();
+    assert.equal(own.children[0].textContent, '36 reps');
+    const before = requests.length;
+    ids.get('leaderboard-weight').onclick(); await settle();
+    assert.equal(exercise.value, 'ex:squat');
+    assert.equal(own.children[0].textContent, '25,125 kg');
+    assert.equal(own.children[1].textContent, 'Jouw zwaarste gewicht');
+    assert.equal(rows.children[0].children[1].textContent, '25,125 kg');
+    assert.equal(ids.get('leaderboard-reps').attributes['aria-pressed'], 'false');
+    assert.equal(ids.get('leaderboard-weight').attributes['aria-pressed'], 'true');
+    assert.equal(requests.length, before + 1);
+    const [address, init] = requests.at(-1), query = new URL(address).searchParams;
+    assert.equal(query.get('order'), 'max_weight.desc.nullslast,updated_at.asc');
+    assert.equal(init.method, 'GET');
+    assert.equal(query.get('exercise_key'), 'in.("ex:squat")');
+    assert.equal(init.headers.Authorization, undefined);
+    assert.equal(requests.filter(([address]) => address.includes('/rpc/')).length, 1, 'Choosing a metric never publishes another score.');
   } finally { fixture.cleanup(); }
 });
 

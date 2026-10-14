@@ -107,8 +107,18 @@ niet werkt. Het logboek zelf blijft offline bruikbaar.
 
 Gebruik steeds hetzelfde beginschermicoontje. Voeg de app bij voorkeur toe
 voordat je gegevens invoert: Safari en een geïnstalleerde webapp kunnen een
-verschillende opslagcontext gebruiken. Een update van de app biedt de app zelf
-aan; je gegevens worden daarbij behouden.
+verschillende opslagcontext gebruiken.
+
+Als een volledige nieuwe versie klaarstaat, verschijnt **Update noodzakelijk**
+met **Nu bijwerken**. Daarna kun je verder; deze stap kun je niet overslaan.
+Bestaande invoer rond je eerst af en opgeslagen trainingen blijven behouden.
+De app controleert bij openen, terugkeren naar de app, opnieuw online komen en
+elke vijf minuten zolang hij zichtbaar is. Een opslagfout voorkomt herladen en
+biedt opnieuw proberen plus een JSON-export om je wijzigingen veilig te stellen.
+Bij oudere geïnstalleerde versies gebruik je eenmalig de bestaande **Update klaar**
+knop om deze verplichte werkwijze te krijgen. Zonder internet kan een toestel
+geen nieuwe release ontdekken; gelijktijdig dezelfde versie op alle toestellen
+is daarom niet te garanderen.
 
 ## Automatische lokale kopieën en toestelwissel
 
@@ -164,7 +174,7 @@ een oefening in de ranglijst om de totale herhalingen van deelnemers te zien.
 Het ranglijstscherm toont meteen de oefenkeuze en scores. Je openbare naam wijzig
 je via **Instellingen → Naam wijzigen**.
 Bij de eerste start vul je één openbare naam in. Het startscherm vermeldt dat
-deze naam, je ranglijstoefeningen en totale reps per oefening openbaar worden.
+deze naam, je ranglijstoefeningen, totale reps en zwaarste gewicht per oefening openbaar worden.
 Daarna tellen je opgeslagen trainingen automatisch mee; je hoeft niet telkens
 iets te delen of aan te melden. Een bestaande gebruiker bevestigt zijn naam één
 keer voor deze werkwijze. Offline kun je gewoon trainen; de scores worden
@@ -199,13 +209,18 @@ van zo’n oefening wordt de naam weer automatisch gebruikt.
 Je oefeningen en geschiedenis in het lokale logboek blijven aan hun eigen IDs
 gekoppeld.
 
-Alleen je openbare naam en een totaal per ranglijstoefening worden gepubliceerd:
+De ranglijst biedt **Meeste reps** en **Zwaarste gewicht** voor dezelfde oefening.
+Alleen je openbare naam en deze aggregaties worden gepubliceerd:
 de herkenbare oefennaam plus het aantal herhalingen (**som van alle losse sets**, over
 opgeslagen trainingen tot en met vandaag). Dezelfde ranglijstoefening telt
-over je verschillende onderdelen heen bij elkaar op. De technische dienst
+over je verschillende onderdelen heen bij elkaar op. Het zwaarste gewicht is het
+hoogste ingevoerde gewicht uit een opgeslagen set met minstens één rep, eveneens
+tot en met vandaag. Bestaande deelnemers bevestigen de nieuwe openbare melding
+eenmalig met hun bestaande naam en identiteit. Oude scores zonder gewichtsrecord
+blijven bij reps zichtbaar en krijgen geen verzonnen kilogramwaarde. De technische dienst
 bewaart daarbij een anonieme identiteit en de bijwerkdatum. Bij een eigen
 oefening wordt de genormaliseerde naam daarvan dus ook openbaar. Trainingsdatums,
-gewichten, afzonderlijke sets/reps, lichaamsmetingen en het volledige logboek
+afzonderlijke gewichten/sets/reps, lichaamsmetingen en het volledige logboek
 worden niet verstuurd.
 
 Je hoeft geen e-mail, wachtwoord of gebruikersaccount te maken. De app beheert
@@ -270,4 +285,5 @@ de publieke configuratie. `backup-reminder.js`
 bevat nog helpers voor gegevensdetectie en oude herinneringsmetadata; de
 periodieke herinnering wordt niet meer aangeboden. `sw.js` bewaart uitsluitend
 de openbare appbestanden voor offline gebruik, in caches die bij deze app-scope horen.
+`update-ui.js` verzorgt de verplichte updatepoort en veilige herlaadvolgorde.
 Zie [AGENTS.md](AGENTS.md) voor de ontwikkelafspraken en controles.

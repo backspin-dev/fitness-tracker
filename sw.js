@@ -2,7 +2,7 @@
 
 // Bump this version whenever any app-shell file changes. Each installation
 // downloads a complete shell before it becomes available to the user.
-const CACHE_VERSION = 'v30';
+const CACHE_VERSION = 'v34';
 const SCOPE = self.registration.scope;
 const CACHE_PREFIX = `fitness-tracker:${encodeURIComponent(SCOPE)}:`;
 const CACHE_NAME = `${CACHE_PREFIX}${CACHE_VERSION}`;
@@ -10,6 +10,7 @@ const SHELL_FILES = [
   'index.html',
   'styles.css',
   'app.js',
+  'update-ui.js',
   'workout-ui.js',
   'navigation.js',
   'data.js',
@@ -40,8 +41,8 @@ self.addEventListener('install', (event) => {
   event.waitUntil((async () => {
     const cache = await caches.open(CACHE_NAME);
     await cache.addAll([...SHELL_URLS].map((url) => new Request(url, { cache: 'reload' })));
-    // An update waits until the user chooses to apply it, or all old windows
-    // close. Never reload a workout in progress automatically.
+    // A complete update waits for the required in-app update screen, or all
+    // old windows to close. The page saves existing input before reloading.
   })());
 });
 
