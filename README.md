@@ -1,8 +1,9 @@
 # Fitness
 
 Een klein Nederlands trainingslogboek voor je iPhone. Kies een trainingsschema,
-voeg oefeningen toe en houd gewicht, sets en reps per set bij. Wijzigingen worden
-automatisch op je eigen toestel opgeslagen.
+voeg oefeningen toe en houd gewicht, sets en reps bij. Wijzigingen worden
+automatisch op je eigen toestel opgeslagen. Bij de eerste start kies je één
+openbare naam; daarmee doe je automatisch mee aan de ranglijsten per oefening.
 
 Bij een nieuwe trainingsdag staan automatisch de oefeningen, gewichten, sets en
 reps van de **laatste eerdere training van hetzelfde onderdeel** klaar. Ieder
@@ -13,13 +14,15 @@ een latere training.
 
 ## Je schema en voortgang
 
+Via het hoofdmenu kies je **Training**, **Statistieken** of **Ranglijst**.
+
 Via **Schema aanpassen** kies je **Push / Pull / Legs**, **Full body** of
 **Upper / Lower**. Je kunt ook eigen onderdelen toevoegen, namen aanpassen en
 onderdelen verbergen of terugzetten. Bij een ander schema blijven de oefeningen
 en eerdere trainingen van verborgen onderdelen bewaard. Ze blijven beschikbaar
 in je geschiedenis en voortgang.
 
-Het grafiekicoon bovenaan opent **Jouw voortgang**:
+**Statistieken** opent je voortgang:
 
 - **Oefeningen:** bekijk gewicht of reps per set per opgeslagen training en het
   totale aantal herhalingen per oefening binnen dat onderdeel. Het totaal is
@@ -71,11 +74,12 @@ ranglijst. Bij import blijft de vorige huidige toestand als lokale herstelkopie
 beschikbaar.
 
 Oudere back-ups en bestaande lokale gegevens worden automatisch naar
-**schemaversie 3** omgezet. Oude oefeningen krijgen **één set**, zodat eerdere
-reptotalen gelijk blijven. IDs, oefeningen, gewichten, reps, trainingsdatums,
-eigen onderdelen en lichaamsmetingen blijven behouden. Back-ups mogen maximaal
-**6 MiB** groot zijn; de extra ruimte zorgt dat oude bestanden tot 5 MiB na het
-toevoegen van sets bruikbaar blijven.
+**schemaversie 4** omgezet. Oefeningen uit versies 1 en 2 krijgen **één set**,
+zodat eerdere reptotalen gelijk blijven. De koppeling met een ranglijstoefening
+wordt automatisch ingevuld; je eigen oefennamen blijven behouden. IDs, oefeningen,
+gewichten, reps, trainingsdatums, eigen onderdelen en lichaamsmetingen blijven
+behouden. Back-ups mogen maximaal **7 MiB** groot zijn. De extra ruimte houdt oudere
+bestanden bruikbaar wanneer sets of ranglijstkoppelingen worden toegevoegd.
 
 De herstelkopieën staan op hetzelfde toestel. Websitegegevens wissen,
 verwijderen van de app, een privévenster of opschoning door iOS kan zowel het
@@ -84,7 +88,7 @@ garanderen. Een geëxporteerde JSON is leesbaar: bewaar het bestand privé en up
 het nooit naar deze repository. Alleen tekst en getallen worden opgeslagen;
 het opslaggebruik hangt af van je geschiedenis en de opslag van iOS.
 
-## Je gegevens en de optionele ranglijst
+## Je gegevens en de ranglijst
 
 - Je schema, oefeningen, gewichten, sets, reps, trainingen en lichaamsgewicht
   staan in **IndexedDB** op het toestel en in de browser waarin je ze invoert.
@@ -97,15 +101,49 @@ het opslaggebruik hangt af van je geschiedenis en de opslag van iOS.
   GitHub levert de openbare appbestanden en ontvangt normale webverzoeken;
   je trainingsinvoer zit daar niet in.
 
-De gezamenlijke ranglijst gebruikt **Supabase**. Deelname is optioneel: kies een
-openbare naam en tik expliciet op **Meedoen**. Alleen die naam en je totale
-repscore (**sets × reps**, over alle opgeslagen trainingen tot en met vandaag)
-worden gepubliceerd. De technische dienst bewaart daarbij een anonieme
-identiteit en de bijwerkdatum van de score. Oefennamen, trainingsdatums,
-gewichten, afzonderlijke sets/reps en lichaamsmetingen worden niet verstuurd.
+De gezamenlijke ranglijst gebruikt **Supabase** en geldt **per oefening**. Kies
+een oefening in de ranglijst om de totale herhalingen van deelnemers te zien.
+Het ranglijstscherm toont meteen de oefenkeuze en scores. Je openbare naam wijzig
+je via **Instellingen → Naam wijzigen**.
+Bij de eerste start vul je één openbare naam in. Het startscherm vermeldt dat
+deze naam, je ranglijstoefeningen en totale reps per oefening openbaar worden.
+Daarna tellen je opgeslagen trainingen automatisch mee; je hoeft niet telkens
+iets te delen of aan te melden. Een bestaande gebruiker bevestigt zijn naam één
+keer voor deze werkwijze. Offline kun je gewoon trainen; de scores worden
+verstuurd zodra de app weer verbinding heeft.
+
+Bij het invoeren van een oefening kun je gewoon je eigen naam typen. Tijdens
+het typen zie je een korte lijst met passende oefeningen. Tik op een suggestie
+of gebruik je eigen tekst; een keuze uit de lijst is nooit verplicht. De
+catalogus bevat **150 bestaande oefeningen** en herkenbare varianten,
+gecontroleerd aan de hand van de [ACE-oefenbibliotheek](https://www.acefitness.org/resources/everyone/exercise-library/)
+en [NASM-oefenbibliotheek](https://www.nasm.org/resource-center/exercise-library).
+De app gebruikt alleen namen en aliassen; er worden geen instructies of
+afbeeldingen van deze bronnen geladen. Bekende catalogusoefeningen staan vooraan. Andere gedeelde namen herken je aan
+**Door gebruikers**; die zijn door gebruikers bedacht en worden niet als
+gecontroleerde catalogusoefeningen gepresenteerd. Suggesties helpen om dezelfde
+oefening herkenbaar te houden. Bekende varianten, zoals
+**Squat** en **Squats**, horen bij dezelfde ranglijstoefening. Verschillende
+uitvoeringen, zoals **Bench press** en **Bench press machine**, blijven apart.
+Onbekende eigen oefeningen krijgen een eigen ranglijst; hoofdletters,
+witruimte en leestekens maken daarbij geen afzonderlijke ranglijst. De app raadt
+niet zelf welke andere namen of uitvoeringen hetzelfde zijn. Een ingeklapte
+toelichting toont de koppeling voor de ranglijst; zo nodig kun je je eigen
+oefening aan een bekende oefening koppelen zonder je eigen naam te veranderen.
+Je oefeningen en geschiedenis in het lokale logboek blijven aan hun eigen IDs
+gekoppeld.
+
+Alleen je openbare naam en een totaal per ranglijstoefening worden gepubliceerd:
+de herkenbare oefennaam plus het aantal herhalingen (**sets × reps**, over
+opgeslagen trainingen tot en met vandaag). Dezelfde ranglijstoefening telt
+over je verschillende onderdelen heen bij elkaar op. De technische dienst
+bewaart daarbij een anonieme identiteit en de bijwerkdatum. Bij een eigen
+oefening wordt de genormaliseerde naam daarvan dus ook openbaar. Trainingsdatums,
+gewichten, afzonderlijke sets/reps, lichaamsmetingen en het volledige logboek
+worden niet verstuurd.
 
 Je hoeft geen e-mail, wachtwoord of gebruikersaccount te maken. De app beheert
-achter de schermen een anonieme sessie om alleen je eigen score te wijzigen.
+achter de schermen een anonieme sessie om alleen je eigen scores te wijzigen.
 Die sessie blijft in de browser op dat toestel en zit **niet in de JSON-back-up**.
 Een toestelwissel of het wissen/verlopen van die sessie kan daarom een nieuwe
 deelname opleveren; de app belooft geen herstel van de oude ranglijstidentiteit.
@@ -129,7 +167,7 @@ Voor de ranglijst configureert alleen de ontwikkelaar het Supabase-project en
 de databasebeveiliging met `supabase/schema.sql`; zie `supabase/README.md` voor
 de installatie. `leaderboard-config.js` bevat de publieke project-URL en
 publishable/anon-sleutel. Een secret- of service-role-sleutel hoort nooit in deze
-app of repository. De backendtoegang is uitsluitend voor openbare aliassen en
+app of repository. De backendtoegang is uitsluitend voor openbare aliassen, ranglijstoefeningen en
 scores; de lokale back-ups blijven lokaal. Zonder configuratie blijft het
 trainingslogboek werken en is de gezamenlijke ranglijst niet aangesloten.
 
@@ -153,8 +191,10 @@ De interface staat in `index.html`, `styles.css` en `app.js`. `groups-ui.js`
 bedient de schema's; `progress-ui.js` bedient de voortgang en lichaamsgewicht.
 `stats.js` berekent statistieken en tekent grafieken met `stats.css`.
 Het gegevensmodel, migratie, opslag en back-upvalidatie staan in `data.js`.
+`exercise-catalog.js` beheert ranglijstoefeningen, bekende naamvarianten en
+suggesties. Persoonlijke namen en geschiedenis blijven onafhankelijk daarvan.
 `recovery.js` beheert de begrensde lokale kopieën; `recovery-ui.js` bedient het
-terugzetten. `leaderboard.js` verzorgt uitsluitend de optionele scoreverbinding;
+terugzetten. `leaderboard.js` verzorgt uitsluitend de scoreverbinding;
 `leaderboard-ui.js` bedient het ranglijstscherm en `leaderboard-config.js` bevat
 de publieke configuratie. `backup-reminder.js`
 bevat nog helpers voor gegevensdetectie en oude herinneringsmetadata; de

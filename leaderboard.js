@@ -1,4 +1,5 @@
-// Alleen een openbare naam en totaalscore verlaten het toestel, na expliciet meedoen.
+// Na het opgeven van een naam worden alleen alias, ranglijstoefeningen en samengevoegde reps gedeeld.
+import { EXERCISE_CATALOG, normalizeExerciseName, resolveRankingExercise } from './exercise-catalog.js';
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export function normalizeDisplayName(value) {
@@ -32,6 +33,50 @@ export function totalSavedReps(state, today) {
     }
   }
   return score(total);
+}
+
+export function aggregateExerciseScores(state, today) {
+  totalSavedReps(state, today); // Dezelfde datum-, sets- en repsvalidatie; routines tellen nooit mee.
+  const totals = new Map(), latest = new Map();
+  const workouts = Object.entries(state.sessions ?? {}).filter(([key, exercises]) => {
+    const match = /^(\d{4}-\d{2}-\d{2}):[^:]+$/.exec(key);
+    return match && match[1] <= today && Array.isArray(exercises);
+  }).sort(([a], [b]) => a.localeCompare(b));
+  const identity = (key, exercise, index) => exercise.id ? `${key.slice(11)}:${exercise.id}` : `${key}:${index}`;
+  for (const [key, exercises] of workouts) exercises.forEach((exercise, index) => latest.set(identity(key, exercise, index), exercise));
+  for (const [key, exercises] of workouts) {
+    for (const [index, exercise] of exercises.entries()) {
+      const { key: exerciseKey, label } = resolveRankingExercise(latest.get(identity(key, exercise, index)));
+      const item = totals.get(exerciseKey) ?? { exercise_key: exerciseKey, exercise_name: label, total_reps: 0 };
+      item.total_reps = score(item.total_reps + (exercise.sets ?? 1) * exercise.reps);
+      totals.set(exerciseKey, item);
+    }
+  }
+  return [...totals.values()].sort((a, b) => a.exercise_key.localeCompare(b.exercise_key));
+}
+
+function checkedScores(values) {
+  if (!Array.isArray(values) || values.length > 5000) throw new Error('Deze oefenscores zijn ongeldig.');
+  const totals = new Map();
+  for (const value of values) {
+    if (!value || typeof value.exercise_key !== 'string' || typeof value.exercise_name !== 'string' ||
+        !value.exercise_name.trim() || value.exercise_name.length > 4096 || value.exercise_key.length > 4096 ||
+        /\p{Cc}/u.test(value.exercise_name)) throw new Error('Deze ranglijstoefening is ongeldig.');
+    const known = EXERCISE_CATALOG.find(item => item.key === value.exercise_key);
+    if (!known && value.exercise_key !== `custom:${normalizeExerciseName(value.exercise_name)}`) throw new Error('Deze ranglijstoefening is ongeldig.');
+    const resolved = resolveRankingExercise({ name: value.exercise_name, ...(known ? { rankingKey: known.key } : {}) });
+    const item = totals.get(resolved.key) ?? { exercise_key: resolved.key, exercise_name: resolved.label, total_reps: 0 };
+    item.total_reps = score(item.total_reps + score(value.total_reps)); totals.set(resolved.key, item);
+  }
+  return [...totals.values()].sort((a, b) => a.exercise_key.localeCompare(b.exercise_key));
+}
+
+function publicExercise(row) {
+  if (typeof row?.exercise_key !== 'string' || !/^(?:ex:|custom:).+$/u.test(row.exercise_key) || row.exercise_key.length > 4096 ||
+      typeof row.exercise_name !== 'string' || !row.exercise_name.trim() || row.exercise_name.length > 4096 || /\p{Cc}/u.test(row.exercise_name)) {
+    throw new Error('De ranglijst gaf een ongeldige oefening.');
+  }
+  return { exercise_key: row.exercise_key, exercise_name: row.exercise_name };
 }
 
 function publicConfig(url, key) {
@@ -71,6 +116,8 @@ export function createLeaderboardClient({ url, anonKey, fetchImpl = globalThis.f
       participant = { version: 1, consented: true, name: normalizeDisplayName(saved.name),
         session: restoredSession, requiresRejoin: saved.requiresRejoin === true || (!!saved.session && !restoredSession),
         active: saved.active !== false, pendingLeave: saved.pendingLeave === true,
+        scoreMode: saved.scoreMode === 'exercise-v1' ? saved.scoreMode : null,
+        lastFingerprint: typeof saved.lastFingerprint === 'string' ? saved.lastFingerprint : null,
         lastTotal: Number.isSafeInteger(saved.lastTotal) ? saved.lastTotal : null,
         lastName: typeof saved.lastName === 'string' ? saved.lastName : null };
     }
@@ -80,7 +127,7 @@ export function createLeaderboardClient({ url, anonKey, fetchImpl = globalThis.f
     try {
       if (!storage) throw new Error();
       storage.setItem(storageKey, JSON.stringify(next));
-    } catch { throw new Error('Deelname kan niet op dit toestel worden bewaard. Je trainingen blijven lokaal beschikbaar.'); }
+    } catch { throw new Error('Je naam kan niet op dit toestel worden bewaard. Je trainingen blijven lokaal beschikbaar.'); }
     participant = next;
   }
   function serial(run) {
@@ -121,7 +168,7 @@ export function createLeaderboardClient({ url, anonKey, fetchImpl = globalThis.f
     return session;
   }
   async function session(forceRefresh = false) {
-    if (participant.requiresRejoin) throw new Error('Deze deelname is verlopen. Tik op Opnieuw meedoen om verder te gaan.');
+    if (participant.requiresRejoin) throw new Error('De verbinding is verlopen. Bewaar je naam opnieuw om verder te gaan.');
     if (!participant.session) return receivedSession(await request('/auth/v1/signup', { method: 'POST', body: { data: {} } }));
     if (!forceRefresh && participant.session.expires_at > now() / 1000 + 60) return participant.session;
     try {
@@ -131,26 +178,27 @@ export function createLeaderboardClient({ url, anonKey, fetchImpl = globalThis.f
     } catch (error) {
       if ([400, 401, 403].includes(error.status)) {
         persist({ ...participant, session: null, requiresRejoin: true });
-        throw new Error('Deze deelname is verlopen. Tik op Opnieuw meedoen om verder te gaan.');
+        throw new Error('De verbinding is verlopen. Bewaar je naam opnieuw om verder te gaan.');
       }
       throw error;
     }
   }
-  async function publish(total, force = false) {
-    score(total);
-    if (!participant || participant.active === false || participant.pendingLeave || !config) return { skipped: true };
-    if (!force && participant.lastTotal === total && participant.lastName === participant.name) return { skipped: true };
+  async function publish(values, force = false) {
+    const scores = checkedScores(values);
+    if (!participant || participant.scoreMode !== 'exercise-v1' || participant.active === false || participant.pendingLeave || !config) return { skipped: true };
+    const fingerprint = JSON.stringify({ name: participant.name, scores });
+    if (!force && participant.lastFingerprint === fingerprint) return { skipped: true };
     let identity = await session();
-    const body = { p_display_name: participant.name, p_total_reps: total };
+    const body = { p_display_name: participant.name, p_scores: scores };
     try {
-      await request('/rest/v1/rpc/fitness_submit_score', { method: 'POST', token: identity.access_token, body });
+      await request('/rest/v1/rpc/fitness_submit_exercise_scores', { method: 'POST', token: identity.access_token, body });
     } catch (error) {
       if (error.status !== 401) throw error;
       identity = await session(true);
-      await request('/rest/v1/rpc/fitness_submit_score', { method: 'POST', token: identity.access_token, body });
+      await request('/rest/v1/rpc/fitness_submit_exercise_scores', { method: 'POST', token: identity.access_token, body });
     }
-    persist({ ...participant, lastName: participant.name, lastTotal: total });
-    return { skipped: false, total };
+    persist({ ...participant, lastName: participant.name, lastTotal: scores.reduce((sum, item) => sum + item.total_reps, 0), lastFingerprint: fingerprint });
+    return { skipped: false, scores };
   }
   async function deactivate() {
     if (!participant?.pendingLeave) return { skipped: true };
@@ -158,11 +206,11 @@ export function createLeaderboardClient({ url, anonKey, fetchImpl = globalThis.f
     if (participant.session || participant.requiresRejoin) {
       let identity = await session();
       try {
-        await request('/rest/v1/rpc/fitness_leave_score', { method: 'POST', token: identity.access_token, body: {} });
+        await request('/rest/v1/rpc/fitness_leave_exercise_scores', { method: 'POST', token: identity.access_token, body: {} });
       } catch (error) {
         if (error.status !== 401) throw error;
         identity = await session(true);
-        await request('/rest/v1/rpc/fitness_leave_score', { method: 'POST', token: identity.access_token, body: {} });
+        await request('/rest/v1/rpc/fitness_leave_exercise_scores', { method: 'POST', token: identity.access_token, body: {} });
       }
     }
     persist({ ...participant, active: false, pendingLeave: false });
@@ -170,23 +218,25 @@ export function createLeaderboardClient({ url, anonKey, fetchImpl = globalThis.f
   }
   return {
     configured: !!config,
-    isJoined: () => participant !== null && participant.active !== false,
+    isJoined: () => participant !== null && participant.scoreMode === 'exercise-v1' && participant.active !== false,
+    canStopSharing: () => participant !== null && participant.active !== false,
     hasPendingLeave: () => participant?.pendingLeave === true,
     requiresRejoin: () => participant?.requiresRejoin === true,
     getDisplayName: () => participant?.name ?? '',
     getLastTotal: () => participant?.lastTotal ?? null,
-    join(name, total) {
+    join(name, values) {
       return serial(async () => {
         if (!config) throw new Error('De ranglijst is nog niet aangesloten.');
-        const normalized = normalizeDisplayName(name); score(total);
+        const normalized = normalizeDisplayName(name), scores = checkedScores(values);
         persist({ version: 1, consented: true, name: normalized,
           session: participant?.requiresRejoin ? null : participant?.session ?? null,
-          requiresRejoin: false, active: true, pendingLeave: false,
-          lastName: participant?.lastName ?? null, lastTotal: participant?.lastTotal ?? null });
-        return publish(total, true);
+          requiresRejoin: false, active: true, pendingLeave: false, scoreMode: 'exercise-v1',
+          lastName: participant?.lastName ?? null, lastTotal: participant?.lastTotal ?? null,
+          lastFingerprint: participant?.lastFingerprint ?? null });
+        return publish(scores, true);
       });
     },
-    sync(total) { return serial(() => participant?.pendingLeave ? deactivate() : publish(total)); },
+    sync(scores) { return serial(() => participant?.pendingLeave ? deactivate() : publish(scores)); },
     leave() {
       return serial(async () => {
         if (!participant) return { skipped: true };
@@ -195,11 +245,22 @@ export function createLeaderboardClient({ url, anonKey, fetchImpl = globalThis.f
         return deactivate();
       });
     },
-    async getScores() {
-      const rows = await request('/rest/v1/fitness_scores?select=display_name,total_reps,updated_at&order=total_reps.desc,updated_at.asc&limit=50');
+    async getExercises() {
+      const rows = await request('/rest/v1/fitness_available_exercises?select=exercise_key,exercise_name&order=exercise_name.asc&limit=1000');
+      if (!Array.isArray(rows) || rows.length > 1000) throw new Error('De ranglijst gaf een ongeldig antwoord.');
+      return [...new Map(rows.map(row => { const item = publicExercise(row); return [item.exercise_key, item]; })).values()];
+    },
+    async getScores(exerciseKey) {
+      if (typeof exerciseKey !== 'string' || !/^(?:ex:|custom:).+$/u.test(exerciseKey) || exerciseKey.length > 4096) throw new Error('Kies een oefening.');
+      const filter = encodeURIComponent(JSON.stringify(exerciseKey));
+      // IN ondersteunt gequote waarden met : , () expliciet; EQ behandelt quotes letterlijk.
+      const rows = await request(`/rest/v1/fitness_exercise_scores?select=exercise_key,exercise_name,display_name,total_reps,updated_at&exercise_key=in.(${filter})&order=total_reps.desc,updated_at.asc&limit=50`);
       if (!Array.isArray(rows) || rows.length > 50) throw new Error('De ranglijst gaf een ongeldig antwoord.');
-      return rows.map(row => ({ display_name: normalizeDisplayName(row.display_name), total_reps: score(row.total_reps),
-        updated_at: typeof row.updated_at === 'string' ? row.updated_at : '' }));
+      return rows.map(row => {
+        if (row.exercise_key !== exerciseKey) throw new Error('De ranglijst gaf een andere oefening terug.');
+        return { ...publicExercise(row), display_name: normalizeDisplayName(row.display_name), total_reps: score(row.total_reps),
+          updated_at: typeof row.updated_at === 'string' ? row.updated_at : '' };
+      });
     },
   };
 }

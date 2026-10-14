@@ -164,7 +164,7 @@ test('reminder storage is isolated from legacy workout storage and backup import
   try {
     assert.equal(await loadBackupReminder(), null);
     assert.deepEqual(await loadState(), state);
-    assert.equal((await loadState()).schemaVersion, 3);
+    assert.equal((await loadState()).schemaVersion, 4);
     const backupBefore = exportBackup(state);
     const reminder = createReminder('2026-10-13');
     await saveBackupReminder(reminder);
@@ -175,7 +175,7 @@ test('reminder storage is isolated from legacy workout storage and backup import
 
     const imported = validateState(JSON.parse(JSON.stringify(legacy)));
     await saveState(imported);
-    assert.equal(records.get('current').schemaVersion, 3);
+    assert.equal(records.get('current').schemaVersion, 4);
     assert.deepEqual(await loadBackupReminder(), reminder);
     assert.equal(Object.hasOwn(imported, 'backupReminder'), false);
     records.set('backup-reminder', { broken: true });

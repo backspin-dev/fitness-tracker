@@ -22,11 +22,11 @@
     <header class="app-header">
       <div><p class="eyebrow">JOUW TRAINING. JOUW TEMPO.</p><h1>Fitness<span>.</span></h1></div>
       <div class="header-actions">
-        <button class="icon-button" id="progress-button" aria-label="Voortgang en lichaamsgewicht" title="Voortgang"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4v16h16M7 15l4-5 4 2 5-7"/></svg></button>
         <button class="icon-button" id="history-button" aria-label="Eerdere trainingen" title="Eerdere trainingen"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11a9 9 0 1 1 2.6 7M3 5v6h6m3-4v5l3 2"/></svg></button>
         <button class="icon-button" id="settings-button" aria-label="Instellingen en back-up" title="Instellingen"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 17h16M9 4v6m6 4v6"/></svg></button>
       </div>
     </header>
+    <nav class="page-nav" aria-label="Hoofdmenu"><span aria-current="page">Training</span><button id="progress-button">Statistieken</button><button id="leaderboard-button">Ranglijst</button></nav>
     <main id="main">
       <div class="date-bar">
         <button class="icon-button" id="previous-day" aria-label="Vorige dag"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14 6-6 6 6 6"/></svg></button>
@@ -58,7 +58,11 @@
     <form id="exercise-form">
       <div class="dialog-heading"><h2 id="exercise-dialog-title">Oefening toevoegen</h2><button type="button" class="icon-button close-dialog" aria-label="Sluiten">×</button></div>
       <label class="field-label" for="exercise-name">Naam van de oefening</label>
-      <input id="exercise-name" class="text-input" maxlength="120" placeholder="Bijv. squat" autocomplete="off" required>
+      <input id="exercise-name" class="text-input" maxlength="120" placeholder="Bijv. squat" autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="exercise-suggestions" aria-describedby="exercise-name-help" required>
+      <div id="exercise-suggestion-panel" class="exercise-suggestion-panel" hidden><div id="exercise-suggestions" role="listbox" aria-label="Oefensuggesties"></div></div>
+      <p id="exercise-name-help" class="exercise-name-help">Kies een suggestie of typ je eigen naam.</p>
+      <span id="exercise-suggestion-status" class="visually-hidden" role="status" aria-live="polite"></span>
+      <details id="exercise-ranking-options" class="ranking-options" hidden><summary id="exercise-ranking-summary">Naam in de ranglijst</summary><p>Je eigen oefennaam blijft staan. Je kunt hieronder kiezen bij welke oefening je reps meetellen.</p><label class="field-label" for="exercise-ranking">Oefening in ranglijst</label><select id="exercise-ranking" class="text-input"></select></details>
       <label class="field-label" for="exercise-weight">Gewicht (kg)</label><input id="exercise-weight" class="text-input" inputmode="decimal" value="0" required>
       <div class="form-grid"><div><label class="field-label" for="exercise-sets">Sets</label><input id="exercise-sets" class="text-input" inputmode="numeric" value="1" maxlength="2" required></div><div><label class="field-label" for="exercise-reps">Reps</label><input id="exercise-reps" class="text-input" inputmode="numeric" value="0" maxlength="3" required></div></div>
       <p id="exercise-error" class="field-error" role="alert" hidden></p>
@@ -69,7 +73,8 @@
 
   <dialog id="settings-dialog" aria-labelledby="settings-title">
     <div class="dialog-heading"><h2 id="settings-title">Jouw gegevens</h2><button class="icon-button close-dialog" aria-label="Sluiten">×</button></div>
-    <div class="privacy-card"><span class="privacy-symbol" aria-hidden="true">↳</span><div><strong>Op dit apparaat bewaard</strong><p>Je oefeningen worden niet naar een server gestuurd. Wie de link opent, ziet jouw gegevens niet.</p></div></div>
+    <button id="edit-player-name" class="secondary full">Naam wijzigen</button>
+    <div class="privacy-card"><span class="privacy-symbol" aria-hidden="true">↳</span><div><strong>Op dit apparaat bewaard</strong><p>Je volledige trainingslogboek blijft hier. Wie de link opent, ziet jouw privégegevens niet.</p></div></div>
     <p class="settings-copy">Lokale herstelkopieën worden automatisch in deze app bewaard. Je hoeft geen bestanden te kiezen of terug te zoeken.</p>
     <p id="recovery-status" class="settings-copy" role="status">Automatische kopieën laden…</p>
     <details id="recovery-copies" hidden><summary>Een eerdere kopie terugzetten</summary><div id="recovery-list"></div></details>
@@ -80,8 +85,8 @@
     <input id="import-file" type="file" accept=".json,application/json" hidden>
     <p id="backup-message" class="settings-copy" role="status"></p>
     <details><summary>Op je iPhone gebruiken</summary><p>Open deze pagina in Safari. Kies Deel → Zet op beginscherm → Open als webapp. Voer je trainingen vervolgens via dat icoon in.</p><p>De opslag in Safari en de geïnstalleerde webapp kan verschillen. Gebruik steeds hetzelfde icoon.</p></details>
-    <details><summary>Privacy & opslag</summary><p>Je trainingen, oefeningen en lichaamsgewicht blijven lokaal. Alleen als je meedoet aan de ranglijst worden je gekozen naam en totale reps openbaar. Een JSON deel of bewaar je zelf. Er zijn geen trackers of advertenties. GitHub kan je IP-adres registreren bij het laden van de app.</p><p>Wie je ontgrendelde toestel gebruikt, kan de tracker openen. De automatische kopieën zitten in dezelfde appopslag; bij wissen daarvan verdwijnen ze ook. Voor een nieuw toestel gebruik je de JSON-export.</p><p id="storage-info">De app vraagt waar mogelijk om blijvende opslag.</p></details>
-    <div class="settings-bottom"><span id="offline-status">Offline gebruik voorbereiden…</span><span>v1.4</span></div>
+    <details><summary>Privacy & opslag</summary><p>Je volledige trainingen, gewichten en lichaamsgewicht blijven lokaal. Je gekozen naam, ranglijstoefeningen en totale reps per oefening zijn openbaar. Eigen oefennamen kunnen ook als suggestie verschijnen bij andere gebruikers. Een JSON deel of bewaar je zelf. Er zijn geen trackers of advertenties. GitHub kan je IP-adres registreren bij het laden van de app.</p><p>Wie je ontgrendelde toestel gebruikt, kan de tracker openen. De automatische kopieën zitten in dezelfde appopslag; bij wissen daarvan verdwijnen ze ook. Voor een nieuw toestel gebruik je de JSON-export.</p><p id="storage-info">De app vraagt waar mogelijk om blijvende opslag.</p></details>
+    <div class="settings-bottom"><span id="offline-status">Offline gebruik voorbereiden…</span><span>v1.5</span></div>
   </dialog>
 
   <dialog id="groups-dialog" aria-labelledby="groups-title">
@@ -124,7 +129,6 @@
       <p class="chart-note">Opgeslagen trainingen per week. Elke datum met oefeningen telt één keer per onderdeel. De laatste balk is de lopende week.</p>
       <div id="training-comparison"></div>
     </section>
-    <button id="leaderboard-button" class="secondary full">Online ranglijst bekijken</button>
   </dialog>
   <dialog id="history-dialog" aria-labelledby="history-title"><div class="dialog-heading"><h2 id="history-title">Eerdere trainingen</h2><button class="icon-button close-dialog" aria-label="Sluiten">×</button></div><div id="history-list"></div></dialog>
   <dialog id="confirm-dialog" aria-labelledby="confirm-title"><h2 id="confirm-title">Weet je het zeker?</h2><p id="confirm-message" class="settings-copy"></p><div class="confirm-actions"><button id="confirm-cancel" class="secondary">Annuleren</button><button id="confirm-ok" class="primary">Doorgaan</button></div></dialog>

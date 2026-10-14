@@ -1,14 +1,16 @@
-import { createState, localDate, getWorkout, getPreviousWorkout, commitWorkout, loadState, saveState, validateState, exportBackup, ensureRecoveryBackup } from './data.js';
+import { createState, localDate, getWorkout, getPreviousWorkout, commitWorkout, loadState, saveState, validateState, exportBackup, ensureRecoveryBackup, setExerciseRanking } from './data.js';
 import { setupGroups } from './groups-ui.js';
 import { setupProgress } from './progress-ui.js';
 import { hasTrainingData } from './backup-reminder.js';
 import { setupRecovery } from './recovery-ui.js';
 import { setupLeaderboard } from './leaderboard-ui.js';
+import { setupExerciseNames } from './exercise-names-ui.js';
 
 const $ = id => document.getElementById(id);
 function groupInfo(id = split) { return state.groups.find(group => group.id === id); }
 const dateFormat = new Intl.DateTimeFormat('nl-NL', { day: 'numeric', month: 'long', year: 'numeric' });
 let state = createState(), split = 'push', date = localDate(), loaded = false;
+let savedState = state;
 let saveQueue = Promise.resolve(), revision = 0, pending = 0, failed = false;
 let editId = null, toastTimer, waitingWorker = null, releaseEditor = null;
 let knownToday = localDate(), importing = false;
@@ -48,6 +50,7 @@ function queueSave() {
   pending++;
   setStatus('Opslaan…');
   saveQueue = saveQueue.catch(() => {}).then(() => saveState(snapshot)).then(async () => {
+    savedState = snapshot;
     if (currentRevision === revision) {
       failed = false;
       $('app-error').hidden = true;
@@ -66,10 +69,10 @@ function queueSave() {
   }).finally(() => { pending--; });
   return saveQueue;
 }
-function changeWorkout(workout, rerender = true) {
+function changeWorkout(workout, rerender = true, base = state) {
   if (!loaded || importing) return Promise.resolve(false);
   try {
-    state = commitWorkout(state, date, split, workout);
+    state = commitWorkout(base, date, split, workout);
     const saved = queueSave();
     if (rerender) render();
     else updateContext();
@@ -193,6 +196,7 @@ function openExercise(exercise = null) {
   $('delete-exercise').hidden = !exercise;
   $('save-exercise').textContent = exercise ? 'Wijzigingen bewaren' : 'Toevoegen';
   $('exercise-error').hidden = true;
+  exerciseNames.open(exercise);
   $('exercise-dialog').showModal(); $('exercise-name').focus();
 }
 function confirmAction(title, message, action) {
@@ -233,8 +237,13 @@ $('exercise-form').addEventListener('submit', event => {
   }
   const workout = getWorkout(state, date, split);
   const exercise = { id: editId || crypto.randomUUID(), name, weight, reps, sets };
+  const rankingKey = exerciseNames.getRankingKey();
+  if (rankingKey) exercise.rankingKey = rankingKey;
+  let base = state;
+  try { if (editId && exerciseNames.hasChanged()) base = setExerciseRanking(state, split, editId, rankingKey || null); }
+  catch (error) { $('exercise-error').textContent = error.message; $('exercise-error').hidden = false; return; }
   if (editId) workout[workout.findIndex(item => item.id === editId)] = exercise; else workout.push(exercise);
-  changeWorkout(workout); $('exercise-dialog').close();
+  changeWorkout(workout, true, base); $('exercise-dialog').close();
 });
 $('delete-exercise').addEventListener('click', async () => {
   if (await confirmAction('Oefening verwijderen?', 'Deze oefening verdwijnt uit deze training. Eerdere opgeslagen trainingen blijven bewaard.', 'Verwijderen')) {
@@ -281,7 +290,7 @@ $('import-backup').addEventListener('click', () => { if (loaded) $('import-file'
 $('import-file').addEventListener('change', async event => {
   const file = event.target.files[0]; event.target.value = ''; if (!file) return;
   try {
-    if (file.size > 6 * 1024 * 1024) throw new Error('Het bestand is groter dan 6 MB.');
+    if (file.size > 7 * 1024 * 1024) throw new Error('Het bestand is groter dan 7 MB.');
     const imported = validateState(JSON.parse(await file.text()));
     const count = Object.values(imported.routines).reduce((sum, list) => sum + list.length, 0);
     const sessions = Object.keys(imported.sessions).length;
@@ -293,7 +302,7 @@ $('import-file').addEventListener('change', async event => {
     await saveQueue;
     if (failed) throw new Error('Bewaar of exporteer eerst je huidige wijzigingen voordat je gegevens vervangt.');
     await saveState(imported, { protectCurrent: 'import' });
-    state = imported; split = imported.ui?.split || imported.groups.find(group => !group.archived).id; date = localDate(); failed = false;
+    state = savedState = imported; split = imported.ui?.split || imported.groups.find(group => !group.archived).id; date = localDate(); failed = false;
     $('app-error').hidden = true; render(); progress.refresh(); setStatus('Bewaard op dit apparaat');
     $('backup-message').textContent = 'Import gelukt. Je gegevens zijn op dit apparaat bewaard.';
     $('settings-dialog').close(); toast('Je oefeningen staan klaar.');
@@ -352,7 +361,8 @@ function changeState(next, options = {}) {
 }
 const groups = setupGroups({ getState: () => state, canEdit: () => loaded && !importing, changeState, confirmAction, toast });
 const progress = setupProgress({ getState: () => state, canEdit: () => loaded && !importing, changeState, confirmAction, toast });
-const leaderboard = setupLeaderboard({ getState: () => state, canEdit: () => loaded && !importing, toast });
+const leaderboard = setupLeaderboard({ getState: () => savedState, canEdit: () => loaded && !importing, toast });
+const exerciseNames = setupExerciseNames({ loadSuggestions: () => leaderboard.getExerciseSuggestions() });
 const recovery = setupRecovery({ canEdit: () => ownsEditor && (loaded || recoverableLoadError) && !importing, canPreserveCurrent: () => loaded, confirmAction, toast, restoreState: async snapshot => {
   if (!ownsEditor || (!loaded && !recoverableLoadError) || importing || exporting) return false;
   importing = true; $('main').inert = true; $('settings-dialog').inert = true;
@@ -361,7 +371,7 @@ const recovery = setupRecovery({ canEdit: () => ownsEditor && (loaded || recover
     if (failed) throw new Error('Bewaar of exporteer eerst je huidige wijzigingen voordat je een kopie terugzet.');
     const restored = validateState(snapshot);
     await saveState(restored, { protectCurrent: 'restore' });
-    state = restored; split = state.ui?.split || state.groups.find(group => !group.archived).id; date = localDate();
+    state = savedState = restored; split = state.ui?.split || state.groups.find(group => !group.archived).id; date = localDate();
     loaded = true; recoverableLoadError = false; failed = false; $('app-error').hidden = true;
     $('import-backup').disabled = false; $('export-backup').disabled = false;
     render(); progress.refresh(); setStatus('Bewaard op dit apparaat'); return true;
@@ -381,7 +391,7 @@ async function init() {
       });
     }
     ownsEditor = canEdit;
-    state = await loadState() || createState(); split = state.ui?.split || state.groups.find(group => !group.archived).id; loaded = canEdit;
+    state = savedState = await loadState() || createState(); split = state.ui?.split || state.groups.find(group => !group.archived).id; loaded = canEdit;
     render();
     if (canEdit) {
       try { await ensureRecoveryBackup(state); }

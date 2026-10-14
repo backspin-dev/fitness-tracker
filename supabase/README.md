@@ -1,63 +1,150 @@
-# Online ranglijst
+# Ranglijsten per oefening
 
-De trainingen, wegingen en herstelkopieën blijven lokaal. Alleen wie op **Meedoen**
-tikt deelt een openbare alias en zijn actuele totaal: sets × reps van alle
-opgeslagen trainingen tot en met vandaag. Het totaal is door de gebruiker zelf
-opgegeven, geen gecontroleerde sportprestatie.
+Trainingen, wegingen en herstelkopieën blijven lokaal. Iedereen geeft bij het
+eerste gebruik één naam op en ziet daarbij dat de naam, ranglijstoefeningen en
+het totaal sets × reps per oefening openbaar zijn. Daarna worden de oefenscores
+automatisch bijgewerkt. Individuele trainingsdatums, gewichten, sets, reps per training,
+lichaamsgewicht en het volledige logboek worden nooit verstuurd.
 
 ## Eenmalige inrichting
 
-1. Maak een Supabase-project. Zet bij Authentication → Sign In / Providers
-   **Anonymous Sign-Ins** aan. Er is geen e-mail of wachtwoord voor deelnemers.
-2. Voer `schema.sql` uit in de SQL Editor. Houd `fitness_private` buiten de
-   **Exposed schemas** van de Data API. `public` moet beschikbaar blijven.
-3. Vul de project-URL en de **publishable** sleutel in `leaderboard-config.js` in.
+1. Maak een Supabase-project en zet bij Authentication → Sign In / Providers
+   **Anonymous Sign-Ins** aan. Deelnemers vullen alleen een naam in.
+2. Voer `schema.sql` uit in de SQL Editor. Het bestand kan opnieuw worden
+   uitgevoerd. Houd `fitness_private` buiten de **Exposed schemas** van de Data
+   API; `public` moet beschikbaar blijven.
+3. Vul project-URL en **publishable** sleutel in `leaderboard-config.js` in.
    Een legacy `anon` sleutel werkt ook. Gebruik nooit `secret` of `service_role`.
-4. Voeg alleen de exacte project-origin toe aan `connect-src` in de CSP van
-   `index.html`. Verhoog de offline cacheversie voor de nieuwe bestanden.
-5. Controleer met twee deelnemers dat dezelfde alias twee onafhankelijke regels
-   oplevert, een naamwijziging dezelfde regel wijzigt en de ene deelnemer geen
-   score van de ander kan wijzigen. Controleer dat REST `select=user_id` faalt,
-   anoniem schrijven zonder user-JWT faalt en de openbare drie scorekolommen
-   leesbaar zijn.
+4. Voeg uitsluitend de exacte project-origin toe aan `connect-src` in de CSP van
+   `index.html`. Verhoog de offline cacheversie voor gewijzigde bestanden.
+5. Controleer met twee testdeelnemers afzonderlijke scores bij dezelfde naam,
+   naam wijzigen zonder nieuwe identiteit, oefenfilter, aliasnormalisatie,
+   de verplichte naamstart en naam wijzigen via Instellingen. Controleer dat REST `select=user_id` faalt,
+   anoniem schrijven zonder user-JWT faalt en direct schrijven naar
+   `fitness_exercise_scores` onmogelijk is. Verberg alleen zelf aangemaakte
+   testdeelnemers na controle via de eigen `fitness_leave_exercise_scores` RPC;
+   er worden geen rijen permanent verwijderd.
 
-De browser gebruikt alleen native `fetch`: anoniem aanmelden via
-`POST /auth/v1/signup` met `{ "data": {} }`, sessies vernieuwen via
-`POST /auth/v1/token?grant_type=refresh_token`, lezen via
-`GET /rest/v1/fitness_scores?select=display_name,total_reps,updated_at&order=total_reps.desc,updated_at.asc&limit=50`
-en bijwerken via `POST /rest/v1/rpc/fitness_submit_score` met alleen
-`p_display_name` en `p_total_reps`. De `apikey`-header bevat de publieke sleutel;
-bij schrijven bevat `Authorization` uitsluitend de JWT van die deelnemer.
+## Oefeningen en privacy
 
-**Stoppen met delen** verbergt de eigen score via
-`POST /rest/v1/rpc/fitness_leave_score`. De rij krijgt `active = false`; de openbare
-SELECT-policy laat die rij niet meer zien. Eerst bewaart de client het stoppen
-lokaal. Bij netwerkuitval probeert hij het verbergen later opnieuw en publiceert
-hij geen nieuwe scores. Een expliciet tik op **Meedoen** activeert dezelfde rij
-opnieuw. De privésessie blijft daarvoor op hetzelfde toestel bewaard.
+De catalogus in `exercise-catalog.js` bevat 150 echte oefeningen met vaste
+sleutels. Alleen expliciete
+aliassen worden samengevoegd: Squat en Squats delen één ranglijst. Bench press,
+Bench press machine en Dumbbell bench press blijven verschillende oefeningen.
+Eigen namen krijgen een sleutel uit NFKC-normalisatie, kleine letters en
+samengevoegde scheidingstekens. Symbolen blijven bewaard wanneer een naam alleen
+uit symbolen bestaat. Labels zijn deterministisch; normalisatie mag de sleutel
+niet veranderen via hoofdletters die uit meerdere tekens bestaan.
 
-De privésessie staat onder een afzonderlijke lokale sleutel en komt nooit in de
-JSON-trainingsback-up of Git. Een naam is geen bewijs van identiteit: dubbele
-namen zijn toegestaan. Een naamwijziging op hetzelfde toestel behoudt de
-deelnemer. Wissen van websitegegevens, een verlopen/verwijderde anonieme sessie
-of een ander toestel kan deze identiteit niet via de naam herstellen. Een
-trainingsback-up terugzetten herstelt wel de trainingen; opnieuw meedoen maakt
-dan een nieuwe ranglijstregel. Een ongeldige sessie wordt nooit stilzwijgend
-vervangen door een nieuwe deelnemer.
+De server bewaart dezelfde catalogus met aliassen in het niet-blootgestelde
+schema. Bekende sleutels krijgen uitsluitend het cataloguslabel. Een eigen
+sleutel moet bij de genormaliseerde naam horen; bekende aliassen worden ook
+serverzijdig naar de vaste sleutel omgezet. Daardoor kan een oudere client met
+`custom:squats` geen tweede Squat-ranglijst maken. Dubbelen na normalisatie worden
+opgeteld. De server vervangt alle actieve oefenscores van uitsluitend de JWT-
+eigenaar atomair; weggelaten oefeningen worden verborgen. De client bepaalt de
+laatste opgeslagen naam/indeling per lokale groep en oefen-ID en gebruikt die
+voor alle eerdere reps van diezelfde oefening.
 
-Na lokaal opslaan wacht de app drie seconden en stuurt het actuele totaal.
-Mislukte verzoeken blokkeren lokaal opslaan niet. De app probeert opnieuw bij
-openen, terugkeren naar de app, terugkeer van verbinding of een volgende wijziging.
-Ongewijzigde totaalscores worden niet telkens opnieuw verzonden.
+De nieuwe tabel `fitness_exercise_scores` heeft RLS en alleen openbare SELECT-
+kolomrechten voor oefensleutel, oefenlabel, alias, totaalscore en bijwerktijd.
+Gebruikers-IDs en de actieve vlag zijn niet leesbaar. Rechtstreeks schrijven is
+niet toegestaan; de RPC controleert `auth.uid()` en schrijft uitsluitend eigen
+rijen. Publieke RPC-wrappers zijn security invoker. De beperkte security definer-
+functies staan in `fitness_private`, met een lege `search_path` en expliciete
+rechten. De overzichtsview `fitness_available_exercises` is security invoker en
+behoudt dus RLS en kolomrechten.
 
-De ingebouwde anonieme aanmeldlimiet van Supabase blijft ingeschakeld. Voor een
-kleine speelse ranglijst volstaat dit als start; openbare scores zijn manipuleerbaar
-en een grotere publieke uitrol vraagt aanvullende misbruikbescherming. Als CAPTCHA
-in Supabase wordt ingeschakeld, moet ook een CAPTCHA-token aan de aanmeldflow
-worden toegevoegd. Deze versie laadt geen externe CAPTCHA.
+Het eerste naamvenster is verplicht en heeft één veld en **Starten**. De
+openbaarheidsmelding staat er direct bij. De naam wordt eerst lokaal bewaard;
+zonder verbinding kan de gebruiker daarna gewoon trainen. De scores worden
+later automatisch verstuurd. Een opslagfout houdt het naamvenster open. Het
+venster verschijnt niet tijdens laden, in een alleen-lezen tabblad of bij een
+opslagfout die het logboek verhindert te laden. **Naam wijzigen** staat in
+Instellingen en gebruikt hetzelfde veld, dan met een annuleermogelijkheid.
+
+Ook een oud profiel voor uitsluitend de globale totaalscore bevestigt eenmalig
+de naam in dit venster. Naam en anonieme sessie blijven behouden; pas na
+**Starten** wordt `scoreMode: 'exercise-v1'` bewaard. Profielen die al een actieve
+naam voor deze scoremodus hebben, hoeven dit niet te herhalen. De normale app
+biedt geen keuze om niet aan de ranglijst deel te nemen. Publiceren van
+per-oefeningscores verbergt de eigen oude globale score. De oude tabel en RPC
+blijven bestaan voor reeds gecachete appversies.
+
+## REST-protocol
+
+Er wordt alleen native `fetch` gebruikt, zonder SDK:
+
+- Anonieme sessie: `POST /auth/v1/signup` met `{ "data": {} }`.
+- Vernieuwen: `POST /auth/v1/token?grant_type=refresh_token`.
+- Publieke oefenlijst: `GET /rest/v1/fitness_available_exercises` met alleen
+  `exercise_key,exercise_name`, zonder zoektekst of user-JWT.
+- Oefenranglijst: `GET /rest/v1/fitness_exercise_scores` met alleen openbare
+  kolommen, een gequote en URL-gecodeerd `exercise_key=in.("…")` filter,
+  `order=total_reps.desc,updated_at.asc` en `limit=50`.
+- Bijwerken: `POST /rest/v1/rpc/fitness_submit_exercise_scores` met
+  `p_display_name` en `p_scores`, een array van uitsluitend
+  `{exercise_key,exercise_name,total_reps}`.
+- Stoppen: `POST /rest/v1/rpc/fitness_leave_exercise_scores` zonder parameters.
+
+De `apikey`-header bevat de publieke sleutel. Bij schrijven bevat
+`Authorization` de JWT van de eigen deelnemer. De openbare oefenlijst mag ook
+suggesties in het vrije oefennaamveld aanvullen; de app verstuurt daarvoor geen
+getypte namen of zoekopdrachten.
+
+Die aanvulling bevat maximaal 1.000 openbare oefennamen, alfabetisch opgehaald
+en daarna lokaal gefilterd. Het is een begrensde momentopname; bij een zeer grote
+verzameling worden niet alle namen geladen. Eigen oefeningen die uitsluitend
+lokaal zijn ingevoerd vóór het bewaren van de verplichte naam, worden nog niet
+gedeeld. Daarna kunnen de gepubliceerde eigen oefennamen ook bij andere gebruikers als **Door gebruikers**
+verschijnen. Dit zijn vrije gebruikersnamen voor oefeningen, geen gecontroleerde
+toevoegingen aan de vaste catalogus. Als de laatste actieve deelnemer stopt met
+delen, verdwijnt die eigen naam uit de openbare oefenlijst. Een al opgehaalde
+momentopname kan op een ander toestel nog tot de volgende verversing zichtbaar
+blijven.
+
+De legacy- en test-RPC `fitness_leave_exercise_scores` verbergt de eigen scores
+in zowel de oude globale tabel als de nieuwe oefentabel met `active = false`.
+Deze API blijft bruikbaar voor oude gecachete clients en het opruimen van eigen
+testprofielen; de huidige gebruikersinterface heeft geen stopknop. De oude
+clientmethode bewaart het verbergen eerst lokaal en probeert een mislukt verzoek
+later opnieuw, zonder nieuwe scores te publiceren. Opnieuw de naam bewaren kan
+dezelfde behouden identiteit weer activeren.
+
+De privésessie staat onder een aparte lokale sleutel en komt nooit in een JSON-
+trainingsback-up of Git. Namen hoeven niet uniek te zijn en bewijzen geen
+identiteit. Een naamwijziging op hetzelfde toestel behoudt de deelnemer. Wissen
+van websitegegevens, een verlopen/verwijderde anonieme sessie of een ander toestel
+kan de identiteit niet via de naam herstellen. Trainingsback-ups herstellen wel
+trainingen; de naam opnieuw opgeven maakt dan een nieuwe deelnemer. Een ongeldige sessie
+wordt nooit stilzwijgend vervangen.
+
+Na het bewaren van de naam en lokaal opslaan wacht de app drie seconden en verstuurt alle actuele
+samengevoegde oefenscores. Een canonieke JSON-vingerafdruk voorkomt herhaalde
+verzoeken als alias en scores gelijk zijn. Netwerkfouten blokkeren lokaal opslaan
+niet. Opnieuw proberen gebeurt bij openen, terugkeren naar de app, terugkeer van
+verbinding of een volgende wijziging.
+
+Het blijft een speelse ranglijst met zelf ingevulde scores. Gewicht en uitvoering
+zijn niet vergelijkbaar en scores kunnen worden gemanipuleerd. De ingebouwde
+Supabase-aanmeldlimiet blijft aan. Een grotere publieke uitrol vraagt aanvullende
+misbruikbescherming. Als CAPTCHA in Supabase wordt aangezet, moet ook een
+CAPTCHA-token aan de aanmeldflow worden toegevoegd; deze versie laadt geen
+externe CAPTCHA.
 
 Bronnen: [anonieme deelnemers](https://supabase.com/docs/guides/auth/auth-anonymous),
 [publieke API-sleutels](https://supabase.com/docs/guides/getting-started/api-keys),
 [RLS en kolomrechten](https://supabase.com/docs/guides/database/postgres/row-level-security),
 [Auth REST-specificatie](https://github.com/supabase/auth/blob/master/openapi.yaml),
-[officiële anonieme REST-aanroep](https://github.com/supabase/auth-js/blob/master/src/GoTrueClient.ts).
+[officiële anonieme REST-aanroep](https://github.com/supabase/auth-js/blob/master/src/GoTrueClient.ts),
+[gequote REST-filters](https://docs.postgrest.org/en/stable/references/api/tables_views.html).
+
+## Catalogus bijwerken
+
+Behoud bestaande sleutels. Na een wijziging van `exercise-catalog.js` regenereert
+`node supabase/update-catalog.mjs` uitsluitend het catalogusblok in de SQL.
+Voer daarna de SQL opnieuw uit. `node --test tests/backend-catalog.test.mjs`
+controleert dat server en client exact dezelfde sleutels, labels en aliassen
+hebben en geen alias verschillende oefeningen verbindt. Bij een uitbreiding
+worden voorheen vrije namen die nu bekend zijn bij de volgende appopening/sync
+naar hun canonieke oefenranglijst verplaatst; het lokale logboek blijft intact.
