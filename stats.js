@@ -47,7 +47,7 @@ export function listExerciseSeries(state) {
       }
       const item = series.get(key);
       item.name = exercise.name;
-      item.points.push({ date: workout.date, weight: exercise.weight, reps: exercise.reps });
+      item.points.push({ date: workout.date, weight: exercise.weight, reps: exercise.reps, sets: exercise.sets ?? 1 });
     }
   }
   return [...series.values()].sort((a, b) => {
@@ -58,12 +58,12 @@ export function listExerciseSeries(state) {
   });
 }
 
-/** Tel de opgeslagen reps van één oefening t/m vandaag, één momentopname per training. */
+/** Tel sets × reps van één oefening t/m vandaag, één momentopname per training. */
 export function exerciseRepSummary(points, today) {
   calendarDay(today);
   return points.reduce((summary, point) => {
     if (point.date <= today) {
-      summary.totalReps += point.reps;
+      summary.totalReps += (point.sets ?? 1) * point.reps;
       summary.trainingCount++;
     }
     return summary;
@@ -124,8 +124,10 @@ export function latestWorkoutComparison(state, groupId, today) {
         name: exercise.name,
         weight: exercise.weight,
         reps: exercise.reps,
+        sets: exercise.sets ?? 1,
         weightDelta: old ? Number((exercise.weight - old.weight).toFixed(8)) : null,
         repsDelta: old ? exercise.reps - old.reps : null,
+        setsDelta: old ? (exercise.sets ?? 1) - (old.sets ?? 1) : null,
       };
     }),
   };

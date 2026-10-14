@@ -36,7 +36,7 @@ export function setupProgress({ getState, canEdit, changeState, confirmAction, t
     const unit = metric === 'weight' ? 'kg' : 'reps', first = points[0], last = points.at(-1);
     $('exercise-summary').textContent = last ? `${number(last[metric])} ${unit} op ${prettyDate(last.date)}${points.length > 1 ? ` · ${delta(Math.round((last[metric] - first[metric]) * 100) / 100, unit)} sinds je eerste meting` : ' · je eerste meting'}` : 'Bewaar een training om je voortgang te zien.';
     renderLineChart($('exercise-chart'), points.map(point => ({ date: point.date, value: point[metric] })), { label: `${current?.name || 'Oefening'}: ${metric === 'weight' ? 'gewicht' : 'reps'}`, unit });
-    table($('exercise-measurements'), ['Datum', 'Kg', 'Reps'], points.slice(-20).reverse().map(point => [prettyDate(point.date), number(point.weight), number(point.reps)]));
+    table($('exercise-measurements'), ['Datum', 'Kg', 'Reps', 'Sets'], points.slice(-20).reverse().map(point => [prettyDate(point.date), number(point.weight), number(point.reps), number(point.sets)]));
   }
   function renderBody() {
     const points = bodyWeightSeries(getState()).filter(point => point.date <= localDate()), first = points[0], last = points.at(-1);
@@ -76,8 +76,8 @@ export function setupProgress({ getState, canEdit, changeState, confirmAction, t
     const note = node('p', comparison.previousDate ? `Verschil met ${prettyDate(comparison.previousDate)}.` : 'Na je volgende training zie je hier de verschillen.', 'chart-note');
     const rows = comparison.rows.map(item => {
       const row = node('div', '', 'comparison-row');
-      row.append(node('strong', item.name), node('span', `${number(item.weight)} kg × ${item.reps} reps`));
-      row.append(node('small', item.weightDelta === null ? 'Nog geen eerdere meting' : `${delta(item.weightDelta, 'kg')} · ${delta(item.repsDelta, 'reps')}`));
+      row.append(node('strong', item.name), node('span', `${number(item.sets)} ${item.sets === 1 ? 'set' : 'sets'} × ${number(item.reps)} reps · ${number(item.weight)} kg`));
+      row.append(node('small', item.weightDelta === null ? 'Nog geen eerdere meting' : `${delta(item.weightDelta, 'kg')} · ${delta(item.repsDelta, 'reps')} · ${delta(item.setsDelta, 'sets')}`));
       return row;
     });
     $('training-comparison').replaceChildren(heading, note, ...rows);

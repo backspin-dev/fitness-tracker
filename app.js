@@ -1,7 +1,9 @@
-import { createState, localDate, getWorkout, getPreviousWorkout, commitWorkout, loadState, saveState, validateState, exportBackup, loadBackupReminder, saveBackupReminder } from './data.js';
+import { createState, localDate, getWorkout, getPreviousWorkout, commitWorkout, loadState, saveState, validateState, exportBackup, ensureRecoveryBackup } from './data.js';
 import { setupGroups } from './groups-ui.js';
 import { setupProgress } from './progress-ui.js';
-import { createReminder, isReminderDue, confirmBackup, snoozeReminder, hasTrainingData } from './backup-reminder.js';
+import { hasTrainingData } from './backup-reminder.js';
+import { setupRecovery } from './recovery-ui.js';
+import { setupLeaderboard } from './leaderboard-ui.js';
 
 const $ = id => document.getElementById(id);
 function groupInfo(id = split) { return state.groups.find(group => group.id === id); }
@@ -10,39 +12,8 @@ let state = createState(), split = 'push', date = localDate(), loaded = false;
 let saveQueue = Promise.resolve(), revision = 0, pending = 0, failed = false;
 let editId = null, toastTimer, waitingWorker = null, releaseEditor = null;
 let knownToday = localDate(), importing = false;
-let backupReminder = null, reminderReady = false, reminderError = false, exporting = false;
-let reminderQueue = Promise.resolve();
-
-function updateBackupReminder() {
-  const today = localDate();
-  $('backup-reminder').hidden = !loaded || !hasTrainingData(state) || !backupReminder || !isReminderDue(backupReminder, today);
-  $('reminder-status').textContent = reminderError
-    ? 'De herinnering kon niet worden bewaard of geladen. Je kunt hieronder zelf een back-up opslaan.'
-    : !loaded ? 'Open de app in één tabblad om je herinnering bij te houden.'
-    : backupReminder?.confirmedOn ? `Laatste back-up door jou bevestigd: ${prettyDate(backupReminder.confirmedOn)}. Herinnering na 14 dagen.`
-    : 'Je krijgt na 14 dagen een herinnering zodra je de app opent. Je kunt ook nu al een back-up opslaan.';
-  $('reminder-export').disabled = exporting || importing;
-  $('reminder-snooze').disabled = exporting || importing;
-}
-function persistBackupReminder(next) {
-  backupReminder = next;
-  reminderQueue = reminderQueue.catch(() => {}).then(() => saveBackupReminder(next)).then(() => {
-    reminderError = false; return true;
-  }).catch(() => { reminderError = true; return false; }).finally(updateBackupReminder);
-  updateBackupReminder();
-  return reminderQueue;
-}
-function ensureBackupReminder() {
-  if (loaded && reminderReady && !backupReminder && hasTrainingData(state)) return persistBackupReminder(createReminder(localDate()));
-  updateBackupReminder();
-  return Promise.resolve(true);
-}
-async function prepareBackupReminder() {
-  try {
-    backupReminder = await loadBackupReminder(); reminderReady = true;
-    await ensureBackupReminder();
-  } catch { reminderError = true; updateBackupReminder(); }
-}
+let exporting = false;
+let ownsEditor = false, recoverableLoadError = false;
 
 function textNode(tag, text, className) {
   const node = document.createElement(tag);
@@ -54,9 +25,10 @@ function prettyDate(value) { return dateFormat.format(new Date(`${value}T12:00:0
 function numberText(value) { return String(value).replace('.', ','); }
 function parseValue(value, field) {
   const raw = value.trim();
-  if (!(field === 'reps' ? /^\d{1,3}$/ : /^\d{1,4}(?:[.,]\d{1,2})?$/).test(raw)) return null;
+  const pattern = field === 'sets' ? /^\d{1,2}$/ : field === 'reps' ? /^\d{1,3}$/ : /^\d{1,4}(?:[.,]\d{1,2})?$/;
+  if (!pattern.test(raw)) return null;
   const number = Number(raw.replace(',', '.'));
-  return Number.isFinite(number) && number <= (field === 'reps' ? 999 : 2000) ? number : null;
+  return Number.isFinite(number) && number >= (field === 'sets' ? 1 : 0) && number <= (field === 'sets' ? 99 : field === 'reps' ? 999 : 2000) ? number : null;
 }
 function setStatus(message, error = false) {
   const dot = textNode('span', '', 'status-dot');
@@ -81,7 +53,8 @@ function queueSave() {
       $('app-error').hidden = true;
       setStatus('Bewaard op dit apparaat');
     }
-    await ensureBackupReminder();
+    if ($('settings-dialog').open) await recovery.refresh();
+    leaderboard.onSaved();
     return true;
   }).catch(() => {
     if (currentRevision === revision) {
@@ -128,22 +101,23 @@ function updateContext() {
     ? 'Je bewerkt de opgeslagen training op deze datum. Andere opgeslagen trainingen blijven behouden.'
     : 'Op deze datum staat nog geen training. De oefeningen staan alvast klaar; pas ze aan of bewaar deze training.';
   $('record-workout').hidden = recorded || !workout.length;
-  $('workout-hint').textContent = recorded ? 'Elke wijziging wordt automatisch bewaard.' : previous ? 'Je vorige oefeningen, gewichten en reps staan klaar. Alleen aanpassen wat verandert.' : 'Stel je oefeningen één keer in. De volgende keer staan ze klaar.';
+  $('workout-hint').textContent = recorded ? 'Elke wijziging wordt automatisch bewaard.' : previous ? 'Je vorige oefeningen, gewichten, sets en reps staan klaar. Alleen aanpassen wat verandert.' : 'Stel je oefeningen één keer in. De volgende keer staan ze klaar.';
 }
 function makeMetric(exercise, field) {
   const wrap = document.createElement('div');
-  const label = textNode('label', field === 'weight' ? 'GEWICHT · KG' : 'REPS', 'metric-label');
+  wrap.className = `metric-${field}`;
+  const label = textNode('label', field === 'weight' ? 'GEWICHT · KG' : field === 'sets' ? 'SETS' : 'REPS / SET', 'metric-label');
   const inputId = `value-${exercise.id}-${field}`;
   label.htmlFor = inputId;
   const stepper = document.createElement('div'); stepper.className = 'stepper';
   const minus = textNode('button', '−'), plus = textNode('button', '+');
-  const fieldName = field === 'weight' ? 'Gewicht' : 'Reps';
+  const fieldName = field === 'weight' ? 'Gewicht' : field === 'sets' ? 'Sets' : 'Reps';
   minus.setAttribute('aria-label', `${fieldName} verlagen voor ${exercise.name}`);
   plus.setAttribute('aria-label', `${fieldName} verhogen voor ${exercise.name}`);
   const input = document.createElement('input');
   input.type = 'text'; input.id = inputId; input.value = numberText(exercise[field]);
   input.inputMode = field === 'weight' ? 'decimal' : 'numeric';
-  input.autocomplete = 'off'; input.maxLength = field === 'weight' ? 7 : 3;
+  input.autocomplete = 'off'; input.maxLength = field === 'weight' ? 7 : field === 'sets' ? 2 : 3;
   input.setAttribute('aria-label', `${fieldName} voor ${exercise.name}`);
   input.addEventListener('focus', () => input.select());
   input.addEventListener('input', () => {
@@ -154,14 +128,14 @@ function makeMetric(exercise, field) {
   input.addEventListener('blur', () => {
     const saved = getWorkout(state, date, split).find(item => item.id === exercise.id);
     if (!saved) return;
-    if (parseValue(input.value, field) === null) toast(field === 'weight' ? 'Vul een gewicht van 0 tot 2.000 kg in.' : 'Vul een heel aantal reps van 0 tot 999 in.');
+    if (parseValue(input.value, field) === null) toast(field === 'weight' ? 'Vul een gewicht van 0 tot 2.000 kg in.' : field === 'sets' ? 'Vul een heel aantal sets van 1 tot 99 in.' : 'Vul een heel aantal reps van 0 tot 999 in.');
     input.value = numberText(saved[field]); input.removeAttribute('aria-invalid');
   });
   input.addEventListener('keydown', event => { if (event.key === 'Enter') input.blur(); });
   function step(direction) {
     const current = getWorkout(state, date, split).find(item => item.id === exercise.id);
     if (!current) return;
-    const value = Math.max(0, Math.min(field === 'weight' ? 2000 : 999, Math.round((current[field] + direction * (field === 'weight' ? 0.5 : 1)) * 100) / 100));
+    const value = Math.max(field === 'sets' ? 1 : 0, Math.min(field === 'weight' ? 2000 : field === 'sets' ? 99 : 999, Math.round((current[field] + direction * (field === 'weight' ? 0.5 : 1)) * 100) / 100));
     input.value = numberText(value); input.removeAttribute('aria-invalid'); updateMetric(exercise.id, field, value);
   }
   minus.addEventListener('click', () => step(-1)); plus.addEventListener('click', () => step(1));
@@ -192,13 +166,12 @@ function render() {
     edit.addEventListener('click', () => openExercise(exercise));
     top.append(textNode('span', String(index + 1).padStart(2, '0'), 'exercise-number'), textNode('h3', exercise.name, 'exercise-name'), edit);
     const metrics = document.createElement('div'); metrics.className = 'metrics';
-    metrics.append(makeMetric(exercise, 'weight'), makeMetric(exercise, 'reps'));
+    metrics.append(makeMetric(exercise, 'weight'), makeMetric(exercise, 'sets'), makeMetric(exercise, 'reps'));
     card.append(top, metrics); return card;
   });
   $('exercise-list').replaceChildren(...cards);
   $('empty-state').hidden = !!workout.length;
   updateContext();
-  updateBackupReminder();
   if (!loaded) document.querySelectorAll('main button, main input').forEach(item => { item.disabled = true; });
 }
 function selectDate(value) {
@@ -216,6 +189,7 @@ function openExercise(exercise = null) {
   $('exercise-name').value = exercise?.name ?? '';
   $('exercise-weight').value = numberText(exercise?.weight ?? 0);
   $('exercise-reps').value = String(exercise?.reps ?? 0);
+  $('exercise-sets').value = String(exercise?.sets ?? 1);
   $('delete-exercise').hidden = !exercise;
   $('save-exercise').textContent = exercise ? 'Wijzigingen bewaren' : 'Toevoegen';
   $('exercise-error').hidden = true;
@@ -250,13 +224,15 @@ $('add-exercise').addEventListener('click', () => openExercise());
 $('record-workout').addEventListener('click', async () => { if (await changeWorkout(getWorkout(state, date, split))) toast('Training bewaard.'); });
 $('exercise-form').addEventListener('submit', event => {
   event.preventDefault();
+  if (!loaded || importing) return;
   const name = $('exercise-name').value.trim(), weight = parseValue($('exercise-weight').value, 'weight'), reps = parseValue($('exercise-reps').value, 'reps');
-  if (!name || weight === null || reps === null) {
-    $('exercise-error').textContent = 'Vul een naam, een gewicht van 0–2.000 kg en een heel aantal reps van 0–999 in.';
+  const sets = parseValue($('exercise-sets').value, 'sets');
+  if (!name || weight === null || reps === null || sets === null) {
+    $('exercise-error').textContent = 'Vul een naam, gewicht van 0–2.000 kg, 1–99 sets en 0–999 reps per set in.';
     $('exercise-error').hidden = false; return;
   }
   const workout = getWorkout(state, date, split);
-  const exercise = { id: editId || crypto.randomUUID(), name, weight, reps };
+  const exercise = { id: editId || crypto.randomUUID(), name, weight, reps, sets };
   if (editId) workout[workout.findIndex(item => item.id === editId)] = exercise; else workout.push(exercise);
   changeWorkout(workout); $('exercise-dialog').close();
 });
@@ -265,7 +241,7 @@ $('delete-exercise').addEventListener('click', async () => {
     changeWorkout(getWorkout(state, date, split).filter(item => item.id !== editId)); $('exercise-dialog').close();
   }
 });
-$('settings-button').addEventListener('click', () => { updateBackupReminder(); $('settings-dialog').showModal(); });
+$('settings-button').addEventListener('click', () => { recovery.refresh(); $('settings-dialog').showModal(); });
 $('history-button').addEventListener('click', () => {
   const items = Object.entries(state.sessions).sort(([a], [b]) => b.localeCompare(a)).map(([key, workout]) => {
     const [day, type] = key.split(':'); const button = document.createElement('button'); button.className = 'history-item';
@@ -275,18 +251,10 @@ $('history-button').addEventListener('click', () => {
   $('history-list').replaceChildren(...(items.length ? items : [textNode('p', 'Nog geen trainingen bewaard. Je eerste wijziging wordt automatisch opgeslagen.', 'settings-copy')]));
   $('history-dialog').showModal();
 });
-$('reminder-snooze').addEventListener('click', async () => {
-  if (!loaded || importing || exporting || !backupReminder) return;
-  if (await persistBackupReminder(snoozeReminder(backupReminder, localDate()))) toast('We herinneren je over 3 dagen opnieuw.');
-});
-$('reminder-export').addEventListener('click', () => {
-  if (!loaded || importing || exporting) return;
-  $('settings-dialog').showModal(); exportFile();
-});
 $('export-backup').addEventListener('click', exportFile);
 async function exportFile() {
   if (exporting || importing) return;
-  exporting = true; $('export-backup').disabled = true; updateBackupReminder();
+  exporting = true; $('export-backup').disabled = true;
   try {
   const json = exportBackup(state);
   const file = new File([json], `fitness-backup-${localDate()}.json`, { type: 'application/json' });
@@ -303,38 +271,34 @@ async function exportFile() {
       downloadFile();
     }
   } catch (error) {
-    if (error.name === 'AbortError') { $('backup-message').textContent = 'Back-up geannuleerd. De herinnering blijft staan.'; return; }
+    if (error.name === 'AbortError') { $('backup-message').textContent = 'Export geannuleerd. Je automatische lokale kopieën blijven bewaard.'; return; }
     downloadFile();
   }
-  // A share/download result does not prove that the user kept the file.
-  if (loaded && hasTrainingData(state) && await confirmAction('Back-up bewaard?', 'Heb je het bestand opgeslagen in Bestanden of je eigen iCloud Drive? Bevestig pas als het daar staat. Dan herinneren we je over 14 dagen opnieuw.', 'Ja, bewaard')) {
-    const saved = await persistBackupReminder(confirmBackup(backupReminder || createReminder(localDate()), localDate()));
-    $('backup-message').textContent = saved ? 'Bevestigd. Over 14 dagen verschijnt de volgende herinnering wanneer je de app opent.' : 'Back-up bevestigd, maar de herinneringsdatum kon niet worden bewaard.';
-  }
-  } catch { $('backup-message').textContent = 'Back-up maken is niet gelukt. Probeer het opnieuw. De herinnering is niet aangepast.'; }
-  finally { exporting = false; $('export-backup').disabled = false; updateBackupReminder(); }
+  } catch { $('backup-message').textContent = 'Exporteren is niet gelukt. Probeer het opnieuw.'; }
+  finally { exporting = false; $('export-backup').disabled = false; }
 }
 $('import-backup').addEventListener('click', () => { if (loaded) $('import-file').click(); });
 $('import-file').addEventListener('change', async event => {
   const file = event.target.files[0]; event.target.value = ''; if (!file) return;
   try {
-    if (file.size > 5 * 1024 * 1024) throw new Error('Het bestand is groter dan 5 MB.');
+    if (file.size > 6 * 1024 * 1024) throw new Error('Het bestand is groter dan 6 MB.');
     const imported = validateState(JSON.parse(await file.text()));
     const count = Object.values(imported.routines).reduce((sum, list) => sum + list.length, 0);
     const sessions = Object.keys(imported.sessions).length;
     const weighings = Object.keys(imported.bodyWeights).length;
-    if (!await confirmAction('Gegevens importeren?', `Dit bestand bevat ${count} oefeningen in je schema’s en ${sessions} bewaarde trainingen en ${weighings} wegingen. Het vervangt je huidige gegevens op dit apparaat. Bewaar die eerst als back-up als je ze wilt houden.`, 'Importeren')) return;
+    if (!await confirmAction('Gegevens importeren?', `Dit bestand bevat ${count} oefening${count === 1 ? '' : 'en'}, ${sessions} opgeslagen training${sessions === 1 ? '' : 'en'} en ${weighings} weging${weighings === 1 ? '' : 'en'}. Het vervangt je huidige gegevens. De huidige opgeslagen gegevens blijven automatisch als lokale kopie bewaard.`, 'Importeren')) return;
     importing = true;
     $('main').inert = true;
     $('settings-dialog').inert = true;
     await saveQueue;
-    await saveState(imported);
+    if (failed) throw new Error('Bewaar of exporteer eerst je huidige wijzigingen voordat je gegevens vervangt.');
+    await saveState(imported, { protectCurrent: 'import' });
     state = imported; split = imported.ui?.split || imported.groups.find(group => !group.archived).id; date = localDate(); failed = false;
     $('app-error').hidden = true; render(); progress.refresh(); setStatus('Bewaard op dit apparaat');
     $('backup-message').textContent = 'Import gelukt. Je gegevens zijn op dit apparaat bewaard.';
     $('settings-dialog').close(); toast('Je oefeningen staan klaar.');
   } catch (error) { $('backup-message').textContent = `Import niet uitgevoerd. ${error instanceof SyntaxError ? 'Dit is geen geldig JSON-bestand.' : error.message}`; }
-  finally { importing = false; $('main').inert = false; $('settings-dialog').inert = false; await ensureBackupReminder(); }
+  finally { importing = false; $('main').inert = false; $('settings-dialog').inert = false; await recovery.refresh(); leaderboard.onSaved(); }
 });
 $('update-button').addEventListener('click', async () => {
   await saveQueue; if (failed || !waitingWorker) return;
@@ -348,7 +312,6 @@ window.addEventListener('pagehide', () => releaseEditor?.());
 window.addEventListener('pageshow', event => { if (event.persisted) location.reload(); });
 function handleNewDay() {
   if (document.visibilityState !== 'visible' || !loaded) return;
-  updateBackupReminder();
   const today = localDate();
   if (today !== knownToday) {
     if (date === knownToday) {
@@ -389,6 +352,21 @@ function changeState(next, options = {}) {
 }
 const groups = setupGroups({ getState: () => state, canEdit: () => loaded && !importing, changeState, confirmAction, toast });
 const progress = setupProgress({ getState: () => state, canEdit: () => loaded && !importing, changeState, confirmAction, toast });
+const leaderboard = setupLeaderboard({ getState: () => state, canEdit: () => loaded && !importing, toast });
+const recovery = setupRecovery({ canEdit: () => ownsEditor && (loaded || recoverableLoadError) && !importing, canPreserveCurrent: () => loaded, confirmAction, toast, restoreState: async snapshot => {
+  if (!ownsEditor || (!loaded && !recoverableLoadError) || importing || exporting) return false;
+  importing = true; $('main').inert = true; $('settings-dialog').inert = true;
+  try {
+    await saveQueue;
+    if (failed) throw new Error('Bewaar of exporteer eerst je huidige wijzigingen voordat je een kopie terugzet.');
+    const restored = validateState(snapshot);
+    await saveState(restored, { protectCurrent: 'restore' });
+    state = restored; split = state.ui?.split || state.groups.find(group => !group.archived).id; date = localDate();
+    loaded = true; recoverableLoadError = false; failed = false; $('app-error').hidden = true;
+    $('import-backup').disabled = false; $('export-backup').disabled = false;
+    render(); progress.refresh(); setStatus('Bewaard op dit apparaat'); return true;
+  } finally { importing = false; $('main').inert = false; $('settings-dialog').inert = false; leaderboard.onSaved(); }
+} });
 
 async function init() {
   render();
@@ -402,9 +380,13 @@ async function init() {
         }).catch(() => resolve(false));
       });
     }
+    ownsEditor = canEdit;
     state = await loadState() || createState(); split = state.ui?.split || state.groups.find(group => !group.archived).id; loaded = canEdit;
     render();
-    if (canEdit) await prepareBackupReminder();
+    if (canEdit) {
+      try { await ensureRecoveryBackup(state); }
+      catch { $('recovery-status').textContent = 'De automatische kopie kon niet worden gemaakt. Je kunt hieronder een JSON exporteren.'; }
+    }
     if (!canEdit) {
       showError('De tracker staat al open in een ander tabblad. Sluit dat tabblad en laad deze pagina opnieuw om te wijzigen.');
       setStatus('Geopend als leesweergave'); $('import-backup').disabled = true;
@@ -415,9 +397,11 @@ async function init() {
       }).catch(() => {});
     }
   } catch (error) {
-    showError(`Je gegevens konden niet worden geladen. Er wordt niets overschreven. Sluit andere tabbladen en probeer opnieuw. ${error.message}`);
+    recoverableLoadError = ownsEditor;
+    showError(`Je gegevens konden niet worden geladen. Er wordt niets overschreven. Open Instellingen om een lokale kopie terug te zetten, of probeer opnieuw. ${error.message}`);
     setStatus('Opslag niet beschikbaar', true); $('import-backup').disabled = true; $('export-backup').disabled = true;
+    await recovery.refresh();
   }
-  prepareOffline();
+  leaderboard.onSaved(); prepareOffline();
 }
 init();

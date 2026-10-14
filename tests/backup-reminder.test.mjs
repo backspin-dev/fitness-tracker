@@ -94,7 +94,8 @@ test('malformed reminder data is rejected and valid metadata is copied', () => {
   assert.throws(() => confirmBackup(reminder, '2026-09-30'), /bevestigingsdatum/);
 });
 
-// Kleine opslagadapter om echte module-API's te testen zonder browser of dependency.
+// Kleine transactionele opslagadapter: chained requests houden de transactie
+// actief en writes worden pas zichtbaar wanneer alle requests voltooid zijn.
 function memoryIndexedDB(records) {
   return {
     open() {
@@ -103,27 +104,44 @@ function memoryIndexedDB(records) {
         request.result = {
           close() {},
           transaction() {
-            const tx = {};
-            tx.objectStore = () => ({
-              get(key) {
-                const operation = {};
-                queueMicrotask(() => {
-                  operation.result = structuredClone(records.get(key));
-                  tx.oncomplete();
-                });
-                return operation;
+            const staged = new Map(records);
+            let pending = 0, finished = false;
+            const tx = {
+              objectStore: () => store,
+              abort() {
+                if (finished) return;
+                finished = true;
+                queueMicrotask(() => tx.onabort?.());
               },
-              put(value, key) {
-                const snapshot = structuredClone(value);
-                const operation = {};
-                queueMicrotask(() => {
-                  records.set(key, snapshot);
-                  operation.result = key;
-                  tx.oncomplete();
-                });
-                return operation;
-              },
-            });
+            };
+            const complete = () => {
+              if (pending || finished) return;
+              queueMicrotask(() => {
+                if (pending || finished) return;
+                finished = true;
+                records.clear();
+                for (const [key, value] of staged) records.set(key, value);
+                tx.oncomplete?.();
+              });
+            };
+            const operation = (kind, key, value) => {
+              const result = {};
+              pending++;
+              queueMicrotask(() => {
+                if (finished) return;
+                if (kind === 'put') staged.set(key, structuredClone(value));
+                result.result = kind === 'get' ? structuredClone(staged.get(key)) : key;
+                result.onsuccess?.();
+                pending--;
+                complete();
+              });
+              return result;
+            };
+            const store = {
+              transaction: tx,
+              get: key => operation('get', key),
+              put: (value, key) => operation('put', key, value),
+            };
             return tx;
           },
         };
@@ -146,7 +164,7 @@ test('reminder storage is isolated from legacy workout storage and backup import
   try {
     assert.equal(await loadBackupReminder(), null);
     assert.deepEqual(await loadState(), state);
-    assert.equal((await loadState()).schemaVersion, 2);
+    assert.equal((await loadState()).schemaVersion, 3);
     const backupBefore = exportBackup(state);
     const reminder = createReminder('2026-10-13');
     await saveBackupReminder(reminder);
@@ -157,7 +175,7 @@ test('reminder storage is isolated from legacy workout storage and backup import
 
     const imported = validateState(JSON.parse(JSON.stringify(legacy)));
     await saveState(imported);
-    assert.equal(records.get('current').schemaVersion, 2);
+    assert.equal(records.get('current').schemaVersion, 3);
     assert.deepEqual(await loadBackupReminder(), reminder);
     assert.equal(Object.hasOwn(imported, 'backupReminder'), false);
     records.set('backup-reminder', { broken: true });

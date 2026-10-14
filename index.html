@@ -4,11 +4,11 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#151714">
-  <meta name="description" content="Je oefeningen, gewicht en reps. Eenvoudig bijgehouden op je eigen apparaat.">
+  <meta name="description" content="Je oefeningen, gewicht, sets en reps. Eenvoudig bijgehouden op je eigen apparaat.">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="referrer" content="no-referrer">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self' https://kjqyndtywwdeqszunklb.supabase.co; worker-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'">
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" href="./icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="./apple-touch-icon.png">
@@ -28,11 +28,6 @@
       </div>
     </header>
     <main id="main">
-      <aside id="backup-reminder" class="backup-reminder" aria-labelledby="reminder-title" hidden>
-        <h2 id="reminder-title">Tijd voor een back-up</h2>
-        <p>Bewaar een kopie van je trainingen in Bestanden of je eigen iCloud Drive.</p>
-        <div class="reminder-actions"><button id="reminder-export" class="primary">Back-up opslaan</button><button id="reminder-snooze" class="secondary">Over 3 dagen</button></div>
-      </aside>
       <div class="date-bar">
         <button class="icon-button" id="previous-day" aria-label="Vorige dag"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14 6-6 6 6 6"/></svg></button>
         <div class="date-control"><label for="workout-date" id="date-label">Vandaag</label><input type="date" id="workout-date" aria-label="Trainingsdatum" min="1900-01-01"></div>
@@ -64,7 +59,8 @@
       <div class="dialog-heading"><h2 id="exercise-dialog-title">Oefening toevoegen</h2><button type="button" class="icon-button close-dialog" aria-label="Sluiten">×</button></div>
       <label class="field-label" for="exercise-name">Naam van de oefening</label>
       <input id="exercise-name" class="text-input" maxlength="120" placeholder="Bijv. squat" autocomplete="off" required>
-      <div class="form-grid"><div><label class="field-label" for="exercise-weight">Gewicht (kg)</label><input id="exercise-weight" class="text-input" inputmode="decimal" value="0" required></div><div><label class="field-label" for="exercise-reps">Reps</label><input id="exercise-reps" class="text-input" inputmode="numeric" value="0" required></div></div>
+      <label class="field-label" for="exercise-weight">Gewicht (kg)</label><input id="exercise-weight" class="text-input" inputmode="decimal" value="0" required>
+      <div class="form-grid"><div><label class="field-label" for="exercise-sets">Sets</label><input id="exercise-sets" class="text-input" inputmode="numeric" value="1" maxlength="2" required></div><div><label class="field-label" for="exercise-reps">Reps per set</label><input id="exercise-reps" class="text-input" inputmode="numeric" value="0" maxlength="3" required></div></div>
       <p id="exercise-error" class="field-error" role="alert" hidden></p>
       <button type="submit" class="primary full" id="save-exercise">Toevoegen</button>
       <button type="button" id="delete-exercise" class="danger full" hidden>Oefening verwijderen</button>
@@ -74,15 +70,18 @@
   <dialog id="settings-dialog" aria-labelledby="settings-title">
     <div class="dialog-heading"><h2 id="settings-title">Jouw gegevens</h2><button class="icon-button close-dialog" aria-label="Sluiten">×</button></div>
     <div class="privacy-card"><span class="privacy-symbol" aria-hidden="true">↳</span><div><strong>Op dit apparaat bewaard</strong><p>Je oefeningen worden niet naar een server gestuurd. Wie de link opent, ziet jouw gegevens niet.</p></div></div>
-    <p class="settings-copy">Bewaar af en toe een back-up in Bestanden of je eigen iCloud Drive. Je kunt die op een nieuw toestel terugzetten.</p>
-    <p id="reminder-status" class="settings-copy">Je krijgt elke 14 dagen een herinnering bij het openen van de app.</p>
-    <button id="export-backup" class="primary full">Back-up opslaan</button>
-    <button id="import-backup" class="secondary full">Back-up of oefeningen importeren</button>
+    <p class="settings-copy">Lokale herstelkopieën worden automatisch in deze app bewaard. Je hoeft geen bestanden te kiezen of terug te zoeken.</p>
+    <p id="recovery-status" class="settings-copy" role="status">Automatische kopieën laden…</p>
+    <details id="recovery-copies" hidden><summary>Een eerdere kopie terugzetten</summary><div id="recovery-list"></div></details>
+    <p id="recovery-error" class="field-error" role="alert" hidden></p>
+    <p class="settings-copy">Nieuw toestel? Exporteer vooraf één JSON-bestand en zet dat op je nieuwe toestel terug. De automatische kopieën blijven op dit apparaat.</p>
+    <button id="export-backup" class="primary full">JSON voor toestelwissel exporteren</button>
+    <button id="import-backup" class="secondary full">JSON of oefeningen terugzetten</button>
     <input id="import-file" type="file" accept=".json,application/json" hidden>
     <p id="backup-message" class="settings-copy" role="status"></p>
     <details><summary>Op je iPhone gebruiken</summary><p>Open deze pagina in Safari. Kies Deel → Zet op beginscherm → Open als webapp. Voer je trainingen vervolgens via dat icoon in.</p><p>De opslag in Safari en de geïnstalleerde webapp kan verschillen. Gebruik steeds hetzelfde icoon.</p></details>
-    <details><summary>Privacy & opslag</summary><p>Alleen de appcode is openbaar. Je invoer blijft lokaal, behalve een back-up die je zelf opslaat of deelt. Er zijn geen trackers of advertenties. GitHub kan je IP-adres registreren bij het laden van de app.</p><p>Wie je ontgrendelde toestel gebruikt, kan de tracker openen. Je gegevens synchroniseren niet automatisch. Bij wissen of verlies van het toestel heb je een back-up nodig.</p><p id="storage-info">De app vraagt waar mogelijk om blijvende opslag.</p></details>
-    <div class="settings-bottom"><span id="offline-status">Offline gebruik voorbereiden…</span><span>v1.3</span></div>
+    <details><summary>Privacy & opslag</summary><p>Je trainingen, oefeningen en lichaamsgewicht blijven lokaal. Alleen als je meedoet aan de ranglijst worden je gekozen naam en totale reps openbaar. Een JSON deel of bewaar je zelf. Er zijn geen trackers of advertenties. GitHub kan je IP-adres registreren bij het laden van de app.</p><p>Wie je ontgrendelde toestel gebruikt, kan de tracker openen. De automatische kopieën zitten in dezelfde appopslag; bij wissen daarvan verdwijnen ze ook. Voor een nieuw toestel gebruik je de JSON-export.</p><p id="storage-info">De app vraagt waar mogelijk om blijvende opslag.</p></details>
+    <div class="settings-bottom"><span id="offline-status">Offline gebruik voorbereiden…</span><span>v1.4</span></div>
   </dialog>
 
   <dialog id="groups-dialog" aria-labelledby="groups-title">
@@ -111,7 +110,7 @@
       <div class="summary-tile rep-total"><strong id="exercise-rep-total">0</strong><span id="exercise-rep-count">Totaal reps · 0 trainingen</span></div>
       <div class="metric-switch" role="group" aria-label="Grafiekwaarde"><button class="secondary" id="chart-weight" aria-pressed="true">Gewicht (kg)</button><button class="secondary" id="chart-reps" aria-pressed="false">Reps</button></div>
       <p id="exercise-summary" class="progress-summary"></p><div id="exercise-chart"></div>
-      <p class="chart-note">Je opgeslagen gewicht en reps per training. Vergelijk beide waarden: meer gewicht met minder reps vertelt een ander verhaal. Het totaal telt je ingevoerde reps voor dit onderdeel één keer per opgeslagen trainingsdag.</p>
+      <p class="chart-note">De grafiek toont gewicht of reps per set. Het totaal telt sets × reps op, één keer per opgeslagen trainingsdag voor dit onderdeel.</p>
       <details><summary>Laatste 20 metingen</summary><div id="exercise-measurements" class="table-scroll"></div></details>
     </section>
     <section id="progress-body" role="tabpanel" aria-labelledby="progress-tab-body" hidden>
@@ -125,6 +124,7 @@
       <p class="chart-note">Opgeslagen trainingen per week. Elke datum met oefeningen telt één keer per onderdeel. De laatste balk is de lopende week.</p>
       <div id="training-comparison"></div>
     </section>
+    <button id="leaderboard-button" class="secondary full">Online ranglijst bekijken</button>
   </dialog>
   <dialog id="history-dialog" aria-labelledby="history-title"><div class="dialog-heading"><h2 id="history-title">Eerdere trainingen</h2><button class="icon-button close-dialog" aria-label="Sluiten">×</button></div><div id="history-list"></div></dialog>
   <dialog id="confirm-dialog" aria-labelledby="confirm-title"><h2 id="confirm-title">Weet je het zeker?</h2><p id="confirm-message" class="settings-copy"></p><div class="confirm-actions"><button id="confirm-cancel" class="secondary">Annuleren</button><button id="confirm-ok" class="primary">Doorgaan</button></div></dialog>

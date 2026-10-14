@@ -1,15 +1,15 @@
 # Fitness
 
 Een klein Nederlands trainingslogboek voor je iPhone. Kies een trainingsschema,
-voeg oefeningen toe en houd je gewicht en herhalingen bij. Wijzigingen worden
+voeg oefeningen toe en houd gewicht, sets en reps per set bij. Wijzigingen worden
 automatisch op je eigen toestel opgeslagen.
 
-Bij een nieuwe trainingsdag staan automatisch de oefeningen, gewichten en reps
-van de **laatste eerdere training van hetzelfde onderdeel** klaar. Ieder
-onderdeel onthoudt zijn eigen training. Een aanpassing wordt vanzelf
-bewaard; gebruik **Deze training bewaren** als je dezelfde waarden opnieuw
-gebruikt. Een al opgeslagen dag houdt zijn eigen waarden en wordt niet
-overschreven door een latere training.
+Bij een nieuwe trainingsdag staan automatisch de oefeningen, gewichten, sets en
+reps van de **laatste eerdere training van hetzelfde onderdeel** klaar. Ieder
+onderdeel onthoudt zijn eigen training. Een aanpassing wordt vanzelf bewaard;
+gebruik **Deze training bewaren** als je dezelfde waarden opnieuw gebruikt.
+Een al opgeslagen dag houdt zijn eigen waarden en wordt niet overschreven door
+een latere training.
 
 ## Je schema en voortgang
 
@@ -21,9 +21,11 @@ in je geschiedenis en voortgang.
 
 Het grafiekicoon bovenaan opent **Jouw voortgang**:
 
-- **Oefeningen:** bekijk het gewicht of aantal reps per opgeslagen training en
-  het totaal aantal ingevoerde reps per oefening binnen dat onderdeel. Iedere
-  opgeslagen trainingsdag telt één keer; opnieuw aanpassen telt niet dubbel.
+- **Oefeningen:** bekijk gewicht of reps per set per opgeslagen training en het
+  totale aantal herhalingen per oefening binnen dat onderdeel. Het totaal is
+  **sets × reps per set**, opgeteld over de opgeslagen trainingen. Drie sets van
+  tien reps leveren dus dertig herhalingen op. Iedere opgeslagen trainingsdag
+  telt één keer; opnieuw aanpassen vervangt die dag en telt niet dubbel.
   Klaargezette oefeningen tellen pas mee zodra je die training bewaart of
   aanpast. Een naamswijziging houdt de geschiedenis bij elkaar.
 - **Gewicht:** voeg je lichaamsgewicht per datum toe en bekijk de grafiek.
@@ -33,8 +35,8 @@ Het grafiekicoon bovenaan opent **Jouw voortgang**:
   met de vorige opgeslagen training per oefening.
 
 De telling gaat over **opgeslagen trainingen**, niet over afgevinkte of afgeronde
-trainingen. Een wijziging in een training bewaart die dag automatisch. De app
-berekent geen trainingsvolume: er worden geen afzonderlijke sets bijgehouden.
+trainingen. Eén oefening heeft één gewicht, aantal sets en aantal reps per set
+voor die trainingsdag. De app registreert geen verschillende waarden per losse set.
 
 ## Openen op je iPhone
 
@@ -42,53 +44,77 @@ berekent geen trainingsvolume: er worden geen afzonderlijke sets bijgehouden.
 2. Kies **Deel → Zet op beginscherm**. Zet **Open als webapp** aan als die optie
    verschijnt en tik op **Voeg toe**.
 3. Open **Fitness** vanaf het nieuwe icoontje en voer daar je oefeningen in.
-4. Laat de app de eerste keer met internetverbinding laden. Daarna is de tool
-   ook offline beschikbaar wanneer de browser de appbestanden heeft bewaard.
+4. Laat de app de eerste keer met internetverbinding laden. Daarna is het
+   logboek ook offline beschikbaar wanneer de browser de appbestanden heeft bewaard.
 
 Gebruik steeds hetzelfde beginschermicoontje. Voeg de app bij voorkeur toe
 voordat je gegevens invoert: Safari en een geïnstalleerde webapp kunnen een
 verschillende opslagcontext gebruiken. Een update van de app biedt de app zelf
 aan; je gegevens worden daarbij behouden.
 
-## Je gegevens en privacy
+## Automatische lokale kopieën en toestelwissel
 
-- Je schema, oefeningen, gewichten, herhalingen, trainingen en lichaamsgewicht
+De app bewaart automatisch **maximaal zeven lokale herstelkopieën** in dezelfde
+browseropslag als je logboek. Je hoeft daarvoor geen bestand te kiezen of terug
+te zoeken. Per dag blijft de laatste gewijzigde versie bewaard. Alleen een andere
+datum of tab openen maakt geen nieuwe kopie. Vóór importeren of een kopie
+terugzetten bewaart de app ook de vervangen toestand; deze extra kopieën tellen
+mee binnen het maximum van zeven. Je vindt de kopieën bij **Instellingen** en
+kunt daar een eerdere toestand terugzetten.
+
+Er verschijnt geen periodieke herinnering meer om een JSON-bestand op te slaan.
+Een handmatige **JSON-export** blijft beschikbaar voor een toestelwissel of een
+kopie buiten deze app. Exporteer die vóór de wissel en importeer hetzelfde bestand
+op het nieuwe toestel. Het bestand bevat het actuele logboek, je onderdelen en
+lichaamsgewicht; het bevat niet alle lokale herstelkopieën of je deelname aan de
+ranglijst. Bij import blijft de vorige huidige toestand als lokale herstelkopie
+beschikbaar.
+
+Oudere back-ups en bestaande lokale gegevens worden automatisch naar
+**schemaversie 3** omgezet. Oude oefeningen krijgen **één set**, zodat eerdere
+reptotalen gelijk blijven. IDs, oefeningen, gewichten, reps, trainingsdatums,
+eigen onderdelen en lichaamsmetingen blijven behouden. Back-ups mogen maximaal
+**6 MiB** groot zijn; de extra ruimte zorgt dat oude bestanden tot 5 MiB na het
+toevoegen van sets bruikbaar blijven.
+
+De herstelkopieën staan op hetzelfde toestel. Websitegegevens wissen,
+verwijderen van de app, een privévenster of opschoning door iOS kan zowel het
+logboek als die kopieën verwijderen. Permanente bewaring kan een webapp niet
+garanderen. Een geëxporteerde JSON is leesbaar: bewaar het bestand privé en upload
+het nooit naar deze repository. Alleen tekst en getallen worden opgeslagen;
+het opslaggebruik hangt af van je geschiedenis en de opslag van iOS.
+
+## Je gegevens en de optionele ranglijst
+
+- Je schema, oefeningen, gewichten, sets, reps, trainingen en lichaamsgewicht
   staan in **IndexedDB** op het toestel en in de browser waarin je ze invoert.
-  De app verstuurt deze gegevens niet naar GitHub of een andere server.
+  Er is geen online trainingslogboek, synchronisatie of online back-up.
 - De appcode en de lege website zijn openbaar. Iemand die dezelfde link op een
   ander toestel opent, krijgt zijn eigen lege logboek.
-- Iemand met toegang tot je ontgrendelde telefoon kan je logboek wel openen.
+- Iemand met toegang tot je ontgrendelde telefoon kan je logboek openen.
   De app heeft geen extra wachtwoord of eigen versleuteling.
-- Er zijn geen trackers, analytics, advertenties, accounts of externe
-  lettertypen. GitHub levert de openbare appbestanden en ontvangt daardoor de
-  normale webverzoeken; je trainingsinvoer zit daar niet in.
-- Er is **geen automatische synchronisatie of online back-up**. Op een nieuwe
-  telefoon zet je zelf een geëxporteerde back-up terug.
+- Er zijn geen trackers, analytics, advertenties of externe lettertypen.
+  GitHub levert de openbare appbestanden en ontvangt normale webverzoeken;
+  je trainingsinvoer zit daar niet in.
 
-Met de back-upfunctie kun je je logboek als JSON-bestand bewaren, bijvoorbeeld
-in je eigen iCloud Drive, en later terugzetten. De back-up bevat ook je eigen
-onderdelen, verborgen onderdelen en lichaamsgewicht. Oudere back-ups met alleen
-Push / Pull / Legs blijven bruikbaar; de app zet ze bij het importeren om naar
-het huidige gegevensmodel. Bestaande lokale gegevens worden eveneens automatisch
-omgezet. Dit bestand bevat jouw gegevens leesbaar: bewaar het op een plek waar
-alleen jij toegang toe hebt en upload het niet naar deze repository. Maak geregeld
-een nieuwe back-up.
+De gezamenlijke ranglijst gebruikt **Supabase**. Deelname is optioneel: kies een
+openbare naam en tik expliciet op **Meedoen**. Alleen die naam en je totale
+repscore (**sets × reps**, over alle opgeslagen trainingen tot en met vandaag)
+worden gepubliceerd. De technische dienst bewaart daarbij een anonieme
+identiteit en de bijwerkdatum van de score. Oefennamen, trainingsdatums,
+gewichten, afzonderlijke sets/reps en lichaamsmetingen worden niet verstuurd.
 
-Zodra je trainingen of lichaamsgewicht hebt opgeslagen, start een lokale
-herinnering. Na **14 dagen**
-verschijnt bij het openen of hervatten van de app een melding met **Back-up
-opslaan** en **Over 3 dagen**. Er komt geen pushbericht wanneer de app gesloten
-is. Na een export bevestig je zelf met **Ja, bewaard** dat het bestand veilig
-staat; pas dan beginnen de volgende 14 dagen. Delen of downloaden annuleren
-telt niet als een bewaarde back-up. De app maakt geen automatische externe
-kopie. De herinneringsdatum staat apart op dit toestel en zit niet in exports.
+Je hoeft geen e-mail, wachtwoord of gebruikersaccount te maken. De app beheert
+achter de schermen een anonieme sessie om alleen je eigen score te wijzigen.
+Die sessie blijft in de browser op dat toestel en zit **niet in de JSON-back-up**.
+Een toestelwissel of het wissen/verlopen van die sessie kan daarom een nieuwe
+deelname opleveren; de app belooft geen herstel van de oude ranglijstidentiteit.
+Namen zijn niet uniek en vormen geen bewijs van identiteit. Scores komen uit
+zelf ingevoerde gegevens; de ranglijst is bedoeld voor plezier en verifieert geen
+sportprestaties. Offline blijven je trainingen werken; score-updates vereisen
+internet.
 
-Websitegegevens wissen, verwijderen van de app, een privévenster of opschoning
-door iOS kan lokale gegevens laten verdwijnen. Permanente bewaring kan een
-webapp niet garanderen. Alleen tekst en getallen worden opgeslagen; het werkelijke
-opslaggebruik hangt af van je geschiedenis en de opslag van iOS.
-
-## GitHub Pages
+## GitHub Pages en ranglijstconfiguratie
 
 Deze repository bevat de volledige website, zonder buildstap of afhankelijkheden.
 Voor de gratis publicatie:
@@ -98,6 +124,14 @@ Voor de gratis publicatie:
 3. Kies branch **main** en map **/ (root)** en klik **Save**.
 4. Na de publicatie is de app bereikbaar via het adres hierboven. Een eigen
    domeinnaam is niet nodig.
+
+Voor de ranglijst configureert alleen de ontwikkelaar het Supabase-project en
+de databasebeveiliging met `supabase/schema.sql`; zie `supabase/README.md` voor
+de installatie. `leaderboard-config.js` bevat de publieke project-URL en
+publishable/anon-sleutel. Een secret- of service-role-sleutel hoort nooit in deze
+app of repository. De backendtoegang is uitsluitend voor openbare aliassen en
+scores; de lokale back-ups blijven lokaal. Zonder configuratie blijft het
+trainingslogboek werken en is de gezamenlijke ranglijst niet aangesloten.
 
 Trainingsgegevens horen niet in GitHub. Pas voor wijzigingen alleen de code aan.
 Bij wijzigingen aan de appbestanden moet ook `CACHE_VERSION` in `sw.js` omhoog,
@@ -118,7 +152,12 @@ De productieversie op GitHub Pages gebruikt HTTPS.
 De interface staat in `index.html`, `styles.css` en `app.js`. `groups-ui.js`
 bedient de schema's; `progress-ui.js` bedient de voortgang en lichaamsgewicht.
 `stats.js` berekent statistieken en tekent grafieken met `stats.css`.
-Het gegevensmodel, migratie, opslag en back-upvalidatie staan in `data.js`;
-`backup-reminder.js` regelt de lokale herinneringsdatum. `sw.js` bewaart uitsluitend
+Het gegevensmodel, migratie, opslag en back-upvalidatie staan in `data.js`.
+`recovery.js` beheert de begrensde lokale kopieën; `recovery-ui.js` bedient het
+terugzetten. `leaderboard.js` verzorgt uitsluitend de optionele scoreverbinding;
+`leaderboard-ui.js` bedient het ranglijstscherm en `leaderboard-config.js` bevat
+de publieke configuratie. `backup-reminder.js`
+bevat nog helpers voor gegevensdetectie en oude herinneringsmetadata; de
+periodieke herinnering wordt niet meer aangeboden. `sw.js` bewaart uitsluitend
 de openbare appbestanden voor offline gebruik, in caches die bij deze app-scope horen.
 Zie [AGENTS.md](AGENTS.md) voor de ontwikkelafspraken en controles.

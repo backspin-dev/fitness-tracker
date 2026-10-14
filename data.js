@@ -1,8 +1,9 @@
 // Fitnessgegevens blijven in IndexedDB op dit apparaat. Geen netwerkverzoeken.
 import { validateReminder } from './backup-reminder.js';
+import { cleanRecoveryEntries, updateRecoveryEntries } from './recovery.js';
 
 export const SPLITS = Object.freeze(['push', 'pull', 'legs']);
-const MAX_BYTES = 5 * 1024 * 1024;
+const MAX_BYTES = 6 * 1024 * 1024;
 const MAX_WORKOUT_EXERCISES = 200;
 const MAX_SESSIONS = 20000;
 const MAX_TOTAL_EXERCISES = 50000;
@@ -21,6 +22,7 @@ const DATABASE = 'fitness-tracker';
 const STORE = 'state';
 const KEY = 'current';
 const REMINDER_KEY = 'backup-reminder';
+const RECOVERY_KEY = 'local-recovery';
 
 function invalid(message) {
   throw new Error(`Ongeldige trainingsgegevens: ${message}`);
@@ -105,13 +107,14 @@ function dictionary(value, label) {
   }
 }
 
-function exercises(value) {
+function exercises(value, allowLegacy = false) {
   if (!Array.isArray(value) || value.length > MAX_WORKOUT_EXERCISES) {
     invalid(`een training mag maximaal ${MAX_WORKOUT_EXERCISES} oefeningen bevatten.`);
   }
   const seen = new Set();
   return value.map(item => {
-    record(item, 'een oefening', ['id', 'name', 'weight', 'reps']);
+    record(item, 'een oefening', ['id', 'name', 'weight', 'reps', 'sets'],
+      allowLegacy ? ['id', 'name', 'weight', 'reps'] : ['id', 'name', 'weight', 'reps', 'sets']);
     if (typeof item.id !== 'string' || !/^[a-zA-Z0-9_-]{1,100}$/.test(item.id) || seen.has(item.id)) {
       invalid('elke oefening moet een unieke, geldige id hebben.');
     }
@@ -125,7 +128,11 @@ function exercises(value) {
     if (typeof item.reps !== 'number' || !Number.isInteger(item.reps) || item.reps < 0 || item.reps > 999) {
       invalid('reps moet een heel getal tussen 0 en 999 zijn.');
     }
-    return { id: item.id, name: item.name.trim(), weight: item.weight, reps: item.reps };
+    const sets = allowLegacy && !Object.hasOwn(item, 'sets') ? 1 : item.sets;
+    if (typeof sets !== 'number' || !Number.isInteger(sets) || sets < 1 || sets > 99) {
+      invalid('sets moet een heel getal tussen 1 en 99 zijn.');
+    }
+    return { id: item.id, name: item.name.trim(), weight: item.weight, reps: item.reps, sets };
   });
 }
 
@@ -136,7 +143,7 @@ export function localDate(date = new Date()) {
 
 export function createState() {
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     groups: SPLITS.map(id => ({ ...GROUP_DEFAULTS[id] })),
     routines: { push: [], pull: [], legs: [] },
     sessions: {},
@@ -148,21 +155,22 @@ export function createState() {
 export function validateState(input) {
   dictionary(input, 'de back-up');
   const legacy = input.schemaVersion === 1;
-  if (!legacy && input.schemaVersion !== 2) invalid('deze back-upversie wordt niet ondersteund.');
+  const legacySets = [1, 2].includes(input.schemaVersion);
+  if (!legacySets && input.schemaVersion !== 3) invalid('deze back-upversie wordt niet ondersteund.');
   const fields = legacy ? ['schemaVersion', 'routines', 'sessions'] :
     ['schemaVersion', 'groups', 'routines', 'sessions', 'bodyWeights'];
   record(input, 'de back-up', [...fields, 'ui'], fields);
-  // Versie 1 kende alleen PPL. Gegevens, ids en datums gaan ongewijzigd over.
+  // Versie 1 kende alleen PPL. Versies 1 en 2 krijgen één set: oude reptotalen blijven gelijk.
   const migratedGroups = legacy ? SPLITS.map(id => ({ ...GROUP_DEFAULTS[id] })) : groups(input.groups);
   const ids = migratedGroups.map(group => group.id);
   record(input.routines, 'de schema’s', ids);
   dictionary(input.sessions, 'de trainingsgeschiedenis');
   const entries = Object.entries(input.sessions);
   if (entries.length > MAX_SESSIONS) invalid('de back-up bevat te veel trainingen.');
-  const result = { schemaVersion: 2, groups: migratedGroups, routines: {}, sessions: {}, bodyWeights: {} };
+  const result = { schemaVersion: 3, groups: migratedGroups, routines: {}, sessions: {}, bodyWeights: {} };
   let count = 0;
   for (const split of ids) {
-    result.routines[split] = exercises(input.routines[split]);
+    result.routines[split] = exercises(input.routines[split], legacySets);
     count += result.routines[split].length;
   }
   for (const [key, value] of entries) {
@@ -170,7 +178,7 @@ export function validateState(input) {
     if (!match) invalid('de trainingsgeschiedenis bevat een ongeldige sleutel.');
     dateKey(match[1]);
     splitKey(match[2], result);
-    result.sessions[key] = exercises(value);
+    result.sessions[key] = exercises(value, legacySets);
     count += result.sessions[key].length;
     if (count > MAX_TOTAL_EXERCISES) invalid('de back-up bevat te veel oefeningen.');
   }
@@ -186,7 +194,7 @@ export function validateState(input) {
   }
   // Compacte exports houden ook grote oude back-ups binnen de importlimiet.
   if (new TextEncoder().encode(JSON.stringify(result)).byteLength > MAX_BYTES) {
-    invalid('de back-up is groter dan 5 MB.');
+    invalid('de back-up is groter dan 6 MB.');
   }
   return result;
 }
@@ -205,24 +213,24 @@ export function getPreviousWorkout(state, date, split) {
   if (previousDate === null) return null;
   return {
     date: previousDate,
-    exercises: exercises(state.sessions[`${previousDate}:${split}`]),
+    exercises: exercises(state.sessions[`${previousDate}:${split}`], state.schemaVersion < 3),
   };
 }
 
 export function getWorkout(state, date, split) {
   const key = `${dateKey(date)}:${splitKey(split, state)}`;
-  if (Object.hasOwn(state.sessions, key)) return exercises(state.sessions[key]);
+  if (Object.hasOwn(state.sessions, key)) return exercises(state.sessions[key], state.schemaVersion < 3);
   const previous = getPreviousWorkout(state, date, split);
   // Een bewust leeggemaakte vorige training blijft leeg.
-  return previous ? previous.exercises : exercises(state.routines[split]);
+  return previous ? previous.exercises : exercises(state.routines[split], state.schemaVersion < 3);
 }
 
 export function commitWorkout(state, date, split, workout) {
   const next = validateState(state);
   const key = `${dateKey(date)}:${splitKey(split, next)}`;
-  next.sessions[key] = exercises(workout);
+  next.sessions[key] = exercises(workout, true);
   // Een oude training aanpassen verandert het schema voor vandaag niet.
-  if (date === localDate()) next.routines[split] = exercises(workout);
+  if (date === localDate()) next.routines[split] = exercises(workout, true);
   next.ui = { split, date };
   return validateState(next);
 }
@@ -351,9 +359,59 @@ export async function loadState() {
   return saved === undefined ? null : validateState(saved);
 }
 
-export async function saveState(state) {
-  const snapshot = validateState(state);
-  await transaction('readwrite', store => store.put(snapshot, KEY));
+function recoveryTransaction(snapshot, protectCurrent, writeCurrent) {
+  return transaction('readwrite', store => {
+    // Lees en schrijf binnen één transactie: een opslagfout draait ook current terug.
+    const copiesRequest = store.get(RECOVERY_KEY);
+    const currentRequest = protectCurrent ? store.get(KEY) : null;
+    const result = { result: undefined, error: null };
+    let copiesReady = false;
+    let currentReady = !currentRequest;
+    const write = () => {
+      if (!copiesReady || !currentReady) return;
+      try {
+        let previous = null;
+        if (currentRequest?.result !== undefined) {
+          // Beschadigde oude gegevens mogen een geldige import niet blokkeren.
+          try { previous = validateState(currentRequest.result); } catch { /* geen herstelbare toestand */ }
+        }
+        const copies = updateRecoveryEntries(copiesRequest.result, {
+          snapshot, previous, reason: protectCurrent, now: new Date(),
+        }, validateState);
+        store.put(copies, RECOVERY_KEY);
+        if (writeCurrent) store.put(snapshot, KEY);
+      } catch (error) {
+        result.error = error;
+        store.transaction.abort();
+      }
+    };
+    copiesRequest.onsuccess = () => { copiesReady = true; write(); };
+    if (currentRequest) currentRequest.onsuccess = () => { currentReady = true; write(); };
+    return result;
+  });
+}
+
+export async function saveState(state, { protectCurrent } = {}) {
+  if (protectCurrent !== undefined && !['import', 'restore'].includes(protectCurrent)) {
+    throw new Error('Kies import of restore voor een beschermde herstelkopie.');
+  }
+  await recoveryTransaction(validateState(state), protectCurrent, true);
+}
+
+// Bestaande logboeken krijgen ook zonder een nieuwe training een lokale herstelkopie.
+export async function ensureRecoveryBackup(state) {
+  await recoveryTransaction(validateState(state), undefined, false);
+}
+
+export async function listRecoveryBackups() {
+  const saved = await transaction('readonly', store => store.get(RECOVERY_KEY));
+  return cleanRecoveryEntries(saved, validateState).map(({ state, ...metadata }) => metadata);
+}
+
+export async function loadRecoveryBackup(id) {
+  const saved = await transaction('readonly', store => store.get(RECOVERY_KEY));
+  const entry = cleanRecoveryEntries(saved, validateState).find(copy => copy.id === id);
+  return entry ? validateState(entry.state) : null;
 }
 
 // Apparaatinstellingen staan los van trainingen en gaan nooit mee in een back-up.
