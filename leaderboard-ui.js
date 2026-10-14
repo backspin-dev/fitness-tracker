@@ -19,7 +19,7 @@ export function renderLeaderboardRows(container, scores) {
   container.replaceChildren(...rows);
 }
 
-export function setupLeaderboard({ getState, canEdit, toast }) {
+export function setupLeaderboard({ getState, canEdit, toast, navigation }) {
   const client = createLeaderboardClient({ url: SUPABASE_URL, anonKey: SUPABASE_ANON_KEY });
   const number = new Intl.NumberFormat('nl-NL');
   let saving = false, loading = false, syncTimer, selectedExercise = '', userSelected = false, remoteExercises = [], loadSequence = 0, editingName = false;
@@ -48,16 +48,17 @@ export function setupLeaderboard({ getState, canEdit, toast }) {
     });
   });
 
-  const dialog = node('dialog'); dialog.id = 'leaderboard-dialog'; dialog.className = 'progress-dialog'; dialog.setAttribute('aria-labelledby', 'leaderboard-title');
-  const heading = node('div', undefined, 'dialog-heading'), title = node('h2', 'Ranglijst'); title.id = 'leaderboard-title';
-  const close = node('button', '×', 'icon-button'); close.type = 'button'; close.setAttribute('aria-label', 'Sluiten'); close.onclick = () => dialog.close(); heading.append(title, close);
+  const page = node('section'); page.id = 'leaderboard-page'; page.className = 'app-page'; page.hidden = true;
+  page.setAttribute('data-app-page', 'ranglijst'); page.setAttribute('aria-labelledby', 'leaderboard-title');
+  const heading = node('div', undefined, 'page-heading'), title = node('h2', 'Ranglijst'); title.id = 'leaderboard-title';
+  const back = node('a', '←', 'back-link icon-button'); back.href = '#/training'; back.setAttribute('aria-label', 'Terug naar training'); heading.append(title, back);
   const exerciseLabel = node('label', 'Oefening', 'field-label'); exerciseLabel.htmlFor = 'leaderboard-exercise';
   const exercise = node('select', undefined, 'text-input'); exercise.id = 'leaderboard-exercise';
   const own = node('div', undefined, 'summary-tile'), ownTotal = node('strong'), ownLabel = node('span'); own.append(ownTotal, ownLabel);
   const boardHeading = node('h3', 'Top 50', 'small-heading'), rows = node('div'); rows.id = 'leaderboard-list';
   const refresh = node('button', 'Vernieuwen', 'secondary full'); refresh.type = 'button';
   const error = node('p', '', 'field-error'); error.setAttribute('role', 'alert'); error.hidden = true;
-  dialog.append(heading, exerciseLabel, exercise, own, boardHeading, rows, refresh, error); document.body.append(dialog);
+  page.append(heading, exerciseLabel, exercise, own, boardHeading, rows, refresh, error); document.getElementById('app-content').append(page);
   const editName = document.getElementById('edit-player-name');
 
   function scores() { return aggregateExerciseScores(getState(), localDate()); }
@@ -118,12 +119,13 @@ export function setupLeaderboard({ getState, canEdit, toast }) {
     if (!client.configured || !client.isJoined() || !canEdit() || saving) return;
     try {
       const result = await client.sync(scores());
-      if (dialog.open && !result.skipped) { error.hidden = true; options(); await load(false); }
-    } catch (cause) { if (dialog.open) failed(cause); }
+      if (navigation.isCurrent('ranglijst') && !result.skipped) { error.hidden = true; options(); await load(false); }
+    } catch (cause) { if (navigation.isCurrent('ranglijst')) failed(cause); }
   }
   function onSaved() {
     controls();
     if (!canEdit() || ensureName() || !client.configured) return;
+    if (navigation.isCurrent('ranglijst')) options();
     clearTimeout(syncTimer); syncTimer = setTimeout(() => { void sync(); }, 3000);
   }
   nameForm.onsubmit = async event => {
@@ -136,16 +138,18 @@ export function setupLeaderboard({ getState, canEdit, toast }) {
       if (client.isJoined() && client.getDisplayName() === savedName) {
         nameDialog.close(); toast('Naam bewaard. Je scores worden bijgewerkt zodra er verbinding is.');
       } else { nameError.textContent = cause.message || 'Je naam kon niet worden bewaard.'; nameError.hidden = false; }
-    } finally { saving = false; controls(); onSaved(); }
+    } finally {
+      saving = false; controls(); onSaved();
+      if (client.isJoined() && !nameDialog.open && navigation.isCurrent('ranglijst')) { error.hidden = true; options(); void load(); }
+    }
   };
   if (editName) editName.onclick = () => { if (canEdit()) openName(true); };
   exercise.onchange = () => { selectedExercise = exercise.value; userSelected = true; error.hidden = true; options(); void load(false); };
   refresh.onclick = async () => { error.hidden = true; await sync(); await load(); };
-  const button = document.getElementById('leaderboard-button');
-  if (button) button.onclick = () => {
+  navigation.onOpen('ranglijst', () => {
     if (ensureName()) return;
-    error.hidden = true; options(); controls(); dialog.showModal(); void load(); void sync();
-  };
+    error.hidden = true; options(); controls(); void load(); void sync();
+  });
   globalThis.addEventListener('online', onSaved);
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') onSaved(); });
   return { onSaved, getExerciseSuggestions: () => client.getExercises() };

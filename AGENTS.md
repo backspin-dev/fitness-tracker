@@ -37,12 +37,22 @@ de app licht en de privacyregels hieronder intact.
 ## Ontwikkeling
 
 - `index.html`, `styles.css` en `app.js`: interface en bediening. Eén oefening
-  heeft per trainingsdag één gewicht, aantal sets en reps per set. Het hoofdmenu
-  toont Training, Statistieken en Ranglijst. De ranglijst opent direct als eigen
-  scherm met oefenkeuze en scores. Houd normale schermen kort en overzichtelijk:
-  geen naamformulier of lange uitleg vóór de scores. Naam wijzigen staat in
-  Instellingen; alleen de eerste start vraagt verplicht één naam met een
+  heeft per trainingsdag één gewicht, aantal sets en reps per set. De kop heeft
+  compacte toegankelijke knoppen voor Statistieken, Ranglijst, Geschiedenis en
+  Instellingen; Fitness brengt je naar Training. Training, Statistieken,
+  Ranglijst en Jouw gegevens zijn gewone pagina’s, geen modale dialogen.
+  De trainingspagina toont alleen de training en de bijbehorende bediening.
+  De ranglijst opent direct met oefenkeuze en scores. Houd normale pagina’s kort
+  en overzichtelijk: geen naamformulier of lange uitleg vóór de scores.
+  Naam wijzigen staat in Instellingen; alleen de eerste start vraagt verplicht
+  één naam met een
   duidelijke melding over de openbare gegevens.
+- `navigation.js`: URL-fragmentroutes `#/training`, `#/statistieken`,
+  `#/ranglijst` en `#/gegevens`. Ondersteun directe links, herladen en de
+  terug-/vooruitknoppen van de browser. Gebruik gewone secties met een
+  duidelijke paginatitel en actieve navigatie. Routing mag geen trainingen
+  aanmaken, gegevens overschrijven of de lokale opslagcontext veranderen.
+  Houd dialogen voor korte bewerkingen, bevestigingen en geschiedenis.
 - `groups-ui.js`: schema's kiezen, eigen onderdelen, hernoemen, verbergen en
   terugzetten. Verbergen bewaart oefeningen en geschiedenis.
 - `progress-ui.js`: voortgangsscherm en lichaamsgewicht invoeren.
@@ -64,8 +74,12 @@ de app licht en de privacyregels hieronder intact.
   catalogussleutels en houd de clientcatalogus gelijk aan de SQL-catalogus;
   opgeslagen koppelingen moeten bruikbaar blijven.
 - `exercise-names-ui.js`: korte zichtbare suggestielijst tijdens typen. Vrije
-  tekst en opslaan zonder selectie blijven mogelijk. Houd de lijst mobiel
-  begrensd en toetsenbordbedienbaar. Toon openbare eigen oefennamen als
+  tekst en opslaan zonder selectie blijven mogelijk. Reserveer een vast
+  begrensd vlak voor suggesties, zodat typen, geen resultaten en andere
+  resultaten de invoervelden of bewaaractie niet verplaatsen. Laat alleen de
+  lijst zelf scrollen wanneer nodig; verplaats de pagina niet bij automatisch
+  verversen. Houd de lijst mobiel begrensd en toetsenbordbedienbaar. Toon openbare
+  eigen oefennamen als
   Door gebruikers, na catalogussuggesties; promoveer ze niet automatisch naar
   geverifieerde oefeningen. Laad de openbare lijst zonder getypte zoektermen
   te versturen. Alleen reeds gedeelde namen mogen andere gebruikers bereiken.
@@ -141,6 +155,12 @@ met duidelijke openbare melding en geen publicatie vóór die start. Controleer
 automatische score-updates, gedeelde gebruikersnamen in suggesties, vrije invoer
 en alleen eigen scores kunnen wijzigen,
 offline en netwerkfouten, verlopen anonieme sessies en geen sessie in JSON.
+Controleer de vier pagina’s via navigatie, directe URL, herladen en browser
+terug/vooruit. Statistieken, Ranglijst en Jouw gegevens mogen geen modal/backdrop
+of dubbele navigatie tonen. Controleer compacte knoppen, actieve pagina en
+bereikbare labels op mobiel. Controleer tijdens het typen, selecteren en wissen
+van oefennamen dat de velden en bewaaractie niet opspringen, ook met het mobiele
+toetsenbord en bij geen resultaten.
 Controleer offline openen na eerste installatie, de updateknop en werking onder
 een subdirectory. Een andere browser begint met een leeg logboek. Gebruik geen
 echte gebruikersgegevens in tests of openbare voorbeelden.

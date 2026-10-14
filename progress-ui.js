@@ -1,7 +1,7 @@
 import { localDate, setBodyWeight, deleteBodyWeight } from './data.js';
 import { listExerciseSeries, exerciseRepSummary, bodyWeightSeries, weeklyTrainingCounts, trainingSummary, latestWorkoutComparison, renderLineChart, renderBarChart } from './stats.js';
 
-export function setupProgress({ getState, canEdit, changeState, confirmAction, toast }) {
+export function setupProgress({ getState, canEdit, changeState, confirmAction, toast, navigation }) {
   const $ = id => document.getElementById(id);
   const saveError = 'Je wijzigingen zijn nog niet opgeslagen. Ze staan wel op dit scherm. Maak via Instellingen een back-up voordat je de app sluit.';
   const dateFormat = new Intl.DateTimeFormat('nl-NL', { day: 'numeric', month: 'short', year: 'numeric' });
@@ -90,9 +90,9 @@ export function setupProgress({ getState, canEdit, changeState, confirmAction, t
     });
     if (tab === 'exercise') renderExercise(); else if (tab === 'body') renderBody(); else renderTraining();
   }
-  $('progress-button').onclick = () => {
-    $('body-date').value = localDate(); fillBodyForm(); render(); $('progress-dialog').showModal();
-  };
+  navigation.onOpen('statistieken', () => {
+    $('body-date').value = localDate(); fillBodyForm(); render();
+  });
   document.querySelectorAll('[data-progress]').forEach(button => {
     button.onclick = () => { tab = button.dataset.progress; render(); };
     button.onkeydown = event => {
@@ -132,5 +132,5 @@ export function setupProgress({ getState, canEdit, changeState, confirmAction, t
     catch (error) { $('body-error').textContent = error.message; $('body-error').hidden = false; }
     finally { saving = false; renderBody(); }
   };
-  return { refresh() { if ($('progress-dialog').open) { render(); fillBodyForm(); } } };
+  return { refresh() { if (navigation.isCurrent('statistieken')) { render(); fillBodyForm(); } } };
 }

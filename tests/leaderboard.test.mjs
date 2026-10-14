@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { totalSavedReps, aggregateExerciseScores, normalizeDisplayName, createLeaderboardClient } from '../leaderboard.js';
 import { renderLeaderboardRows, setupLeaderboard } from '../leaderboard-ui.js';
+import { setupProgress } from '../progress-ui.js';
 
 const url = 'https://example.supabase.co', anonKey = 'sb_publishable_test';
 const S = total => [{ exercise_key: 'ex:squat', exercise_name: 'Squat', total_reps: total }];
@@ -391,26 +392,36 @@ function nameUiFixture({ writable = true, storageFails = false } = {}) {
   const ids = new Map(), values = new Map(), requests = [], toasts = [];
   let editable = writable;
   class Element {
-    constructor(tag, ownerDocument) { this.tagName = tag; this.ownerDocument = ownerDocument; this.children = []; this.listeners = {}; this.textContent = ''; this.value = ''; this.open = false; this.hidden = false; this.disabled = false; }
+    constructor(tag, ownerDocument) { this.tagName = tag; this.ownerDocument = ownerDocument; this.children = []; this.listeners = {}; this.attributes = {}; this.dataset = {}; this.textContent = ''; this.value = ''; this.open = false; this.hidden = false; this.disabled = false; }
     set id(value) { this._id = value; ids.set(value, this); }
     get id() { return this._id; }
-    setAttribute() {}
+    setAttribute(key, value) { this.attributes[key] = value; }
     append(...items) { this.children.push(...items); }
     replaceChildren(...items) { this.children = items; }
     addEventListener(event, handler) { (this.listeners[event] ??= []).push(handler); }
-    showModal() { this.open = true; }
+    showModal() { assert.equal(this.tagName, 'dialog', 'Alleen het naamvenster mag modal zijn.'); this.open = true; }
     close() { this.open = false; for (const listener of this.listeners.close ?? []) listener({}); }
     focus() {}
   }
-  const document = { createElement: tag => new Element(tag, document), getElementById: id => ids.get(id) ?? null, addEventListener() {} };
+  const document = { createElement: tag => new Element(tag, document), createElementNS: (namespace, tag) => new Element(tag, document), getElementById: id => ids.get(id) ?? null, addEventListener() {}, querySelectorAll(selector) {
+    if (selector === '[data-progress]') return [...ids.values()].filter(item => item.dataset.progress);
+    if (selector === '#body-form input, #body-form button') return ['body-date', 'body-weight', 'delete-body'].map(id => ids.get(id));
+    return [];
+  } };
   document.body = document.createElement('body');
-  for (const id of ['edit-player-name', 'leaderboard-button']) { const button = document.createElement('button'); button.id = id; document.body.append(button); }
+  const content = document.createElement('main'); content.id = 'app-content'; document.body.append(content);
+  for (const id of ['edit-player-name', 'leaderboard-button', 'progress-button']) { const button = document.createElement('button'); button.id = id; document.body.append(button); }
   const storage = { getItem: key => values.get(key) ?? null, setItem(key, value) { if (storageFails) throw new Error('storage denied'); values.set(key, value); } };
   for (const [key, value] of Object.entries({ document, localStorage: storage, fetch: async (...args) => { requests.push(args); throw new Error('offline'); }, addEventListener() {}, setTimeout: () => 1, clearTimeout() {} })) {
     Object.defineProperty(globalThis, key, { value, writable: true, configurable: true });
   }
-  const ui = setupLeaderboard({ getState: () => ({ sessions: {} }), canEdit: () => editable, toast: message => toasts.push(message) });
-  return { ui, ids, values, requests, toasts, setEditable(value) { editable = value; }, cleanup() {
+  let currentPage = 'training'; const pageHandlers = new Map();
+  const navigation = {
+    onOpen(page, handler) { pageHandlers.set(page, handler); }, isCurrent(page) { return currentPage === page; },
+    open(page) { currentPage = page; for (const child of content.children) child.hidden = child.attributes['data-app-page'] !== page; pageHandlers.get(page)?.(); },
+  };
+  const ui = setupLeaderboard({ getState: () => ({ sessions: {} }), canEdit: () => editable, toast: message => toasts.push(message), navigation });
+  return { ui, navigation, document, ids, values, requests, toasts, setEditable(value) { editable = value; }, cleanup() {
     for (const [key, descriptor] of original) { if (descriptor) Object.defineProperty(globalThis, key, descriptor); else delete globalThis[key]; }
   } };
 }
@@ -432,7 +443,14 @@ test('first-use name screen waits for editable load, blocks Escape, stores offli
     assert.equal(JSON.parse([...fixture.values.values()][0]).name, 'Example');
     assert.equal(JSON.parse([...fixture.values.values()][0]).scoreMode, 'exercise-v1');
     assert.equal(fixture.requests.length, 1); assert.match(fixture.toasts.at(-1), /verbinding/);
-    const viewer = ids.get('leaderboard-dialog');
+    const viewer = ids.get('leaderboard-page');
+    assert.equal(viewer.tagName, 'section'); assert.equal(viewer.attributes['data-app-page'], 'ranglijst');
+    assert.equal(ids.get('app-content').children.includes(viewer), true);
+    assert.equal(ids.has('leaderboard-dialog'), false);
+    assert.equal(viewer.children[0].children[1].href, '#/training');
+    assert.equal(viewer.children[0].children[1].textContent, '←');
+    assert.equal(viewer.children[0].children[1].attributes['aria-label'], 'Terug naar training');
+    assert.equal(ids.get('leaderboard-button').onclick, undefined);
     assert.equal(viewer.children.some(item => item.tagName === 'form' || item.tagName === 'details'), false);
     ids.get('edit-player-name').onclick(); assert.equal(nameDialog.open, true);
     prevented = false; nameDialog.listeners.cancel[0]({ preventDefault() { prevented = true; } }); assert.equal(prevented, false);
@@ -448,5 +466,32 @@ test('failed local name storage keeps the required name screen open and never st
     assert.equal(dialog.open, true); assert.equal(fixture.requests.length, 0);
     const error = dialog.children.find(item => item.tagName === 'form').children.find(item => item.className === 'field-error');
     assert.equal(error.hidden, false); assert.match(error.textContent, /toestel/);
+  } finally { fixture.cleanup(); }
+});
+
+test('statistics renders on its own route and refreshes only while that page is current', () => {
+  const fixture = nameUiFixture();
+  try {
+    const { document, ids, navigation } = fixture;
+    for (const id of ['exercise-series', 'chart-weight', 'chart-reps', 'exercise-rep-total', 'exercise-rep-count', 'exercise-summary', 'exercise-chart', 'exercise-measurements', 'body-date', 'body-weight', 'body-edit-note', 'delete-body', 'body-error', 'body-form', 'training-group', 'training-summary', 'training-chart', 'training-comparison', 'body-summary', 'body-chart', 'body-measurements']) {
+      const element = document.createElement('div'); element.id = id; document.body.append(element);
+    }
+    for (const tab of ['exercise', 'body', 'training']) {
+      const button = document.createElement('button'); button.id = `progress-tab-${tab}`; button.dataset.progress = tab; document.body.append(button);
+      const panel = document.createElement('section'); panel.id = `progress-${tab}`; document.body.append(panel);
+    }
+    const state = { sessions: {}, groups: [], bodyWeights: {} };
+    const progress = setupProgress({ getState: () => state, canEdit: () => true, changeState: async () => true, confirmAction: async () => false, toast() {}, navigation });
+    ids.get('exercise-rep-total').textContent = 'untouched'; progress.refresh();
+    assert.equal(ids.get('exercise-rep-total').textContent, 'untouched');
+    navigation.open('statistieken'); assert.equal(ids.get('exercise-rep-total').textContent, '0');
+    assert.match(ids.get('body-date').value, /^\d{4}-\d{2}-\d{2}$/);
+    state.sessions['2000-01-01:push'] = [{ id: 'example', name: 'Squat', sets: 3, reps: 12, weight: 25 }];
+    progress.refresh(); assert.equal(ids.get('exercise-rep-total').textContent, '36');
+    navigation.open('training'); state.sessions = {}; progress.refresh();
+    assert.equal(ids.get('exercise-rep-total').textContent, '36');
+    navigation.open('statistieken'); assert.equal(ids.get('exercise-rep-total').textContent, '0');
+    assert.equal(ids.get('progress-button').onclick, undefined);
+    assert.equal(ids.has('progress-dialog'), false);
   } finally { fixture.cleanup(); }
 });

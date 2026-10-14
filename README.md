@@ -14,7 +14,18 @@ een latere training.
 
 ## Je schema en voortgang
 
-Via het hoofdmenu kies je **Training**, **Statistieken** of **Ranglijst**.
+Bovenaan staan compacte knoppen voor **Statistieken**, **Ranglijst**,
+**Geschiedenis** en **Instellingen**. Tik op **Fitness** om terug te gaan naar je
+training. Training, Statistieken, Ranglijst en Jouw gegevens zijn gewone pagina’s;
+je kunt de terugknop van je browser gebruiken. Geschiedenis en korte bewerkingen,
+zoals een oefening toevoegen, openen als dialoog.
+
+De pagina’s hebben elk een eigen link: [Training](https://backspin-dev.github.io/fitness-tracker/#/training),
+[Statistieken](https://backspin-dev.github.io/fitness-tracker/#/statistieken),
+[Ranglijst](https://backspin-dev.github.io/fitness-tracker/#/ranglijst) en
+[Jouw gegevens](https://backspin-dev.github.io/fitness-tracker/#/gegevens).
+Je trainingspagina toont je oefeningen en invoer; grafieken en scores staan op
+hun eigen pagina.
 
 Via **Schema aanpassen** kies je **Push / Pull / Legs**, **Full body** of
 **Upper / Lower**. Je kunt ook eigen onderdelen toevoegen, namen aanpassen en
@@ -113,7 +124,9 @@ keer voor deze werkwijze. Offline kun je gewoon trainen; de scores worden
 verstuurd zodra de app weer verbinding heeft.
 
 Bij het invoeren van een oefening kun je gewoon je eigen naam typen. Tijdens
-het typen zie je een korte lijst met passende oefeningen. Tik op een suggestie
+het typen zie je een korte lijst met passende oefeningen binnen een vast
+begrensd vlak. De invoervelden en bewaaractie blijven op hun plek terwijl de
+resultaten veranderen. Tik op een suggestie
 of gebruik je eigen tekst; een keuze uit de lijst is nooit verplicht. De
 catalogus bevat **150 bestaande oefeningen** en herkenbare varianten,
 gecontroleerd aan de hand van de [ACE-oefenbibliotheek](https://www.acefitness.org/resources/everyone/exercise-library/)
@@ -187,7 +200,11 @@ Open daarna `http://localhost:8000/`. Offlinefunctionaliteit vereist HTTPS of
 localhost; rechtstreeks openen via `file://` werkt niet als geïnstalleerde app.
 De productieversie op GitHub Pages gebruikt HTTPS.
 
-De interface staat in `index.html`, `styles.css` en `app.js`. `groups-ui.js`
+De interface staat in `index.html`, `styles.css` en `app.js`. `navigation.js`
+regelt de vier paginaroutes via de URL-fragmenten `#/training`, `#/statistieken`,
+`#/ranglijst` en `#/gegevens`, inclusief directe links en browsergeschiedenis.
+`exercise-names-ui.js` bedient de zichtbare suggesties zonder verschuivende
+formulierindeling. `groups-ui.js`
 bedient de schema's; `progress-ui.js` bedient de voortgang en lichaamsgewicht.
 `stats.js` berekent statistieken en tekent grafieken met `stats.css`.
 Het gegevensmodel, migratie, opslag en back-upvalidatie staan in `data.js`.

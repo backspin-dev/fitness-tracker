@@ -5,6 +5,7 @@ import { hasTrainingData } from './backup-reminder.js';
 import { setupRecovery } from './recovery-ui.js';
 import { setupLeaderboard } from './leaderboard-ui.js';
 import { setupExerciseNames } from './exercise-names-ui.js';
+import { setupNavigation } from './navigation.js';
 
 const $ = id => document.getElementById(id);
 function groupInfo(id = split) { return state.groups.find(group => group.id === id); }
@@ -16,6 +17,7 @@ let editId = null, toastTimer, waitingWorker = null, releaseEditor = null;
 let knownToday = localDate(), importing = false;
 let exporting = false;
 let ownsEditor = false, recoverableLoadError = false;
+const navigation = setupNavigation({ canNavigate: () => !importing && !exporting && !document.querySelector('dialog[open]') });
 
 function textNode(tag, text, className) {
   const node = document.createElement(tag);
@@ -56,7 +58,7 @@ function queueSave() {
       $('app-error').hidden = true;
       setStatus('Bewaard op dit apparaat');
     }
-    if ($('settings-dialog').open) await recovery.refresh();
+    if (navigation.isCurrent('gegevens')) await recovery.refresh();
     leaderboard.onSaved();
     return true;
   }).catch(() => {
@@ -145,7 +147,7 @@ function makeMetric(exercise, field) {
   stepper.append(minus, input, plus); wrap.append(label, stepper); return wrap;
 }
 function render() {
-  document.querySelectorAll('main button, main input').forEach(item => { item.disabled = false; });
+  document.querySelectorAll('#main button, #main input').forEach(item => { item.disabled = false; });
   if (!groupInfo()) split = state.groups.find(group => !group.archived).id;
   $('split-title').textContent = groupInfo().name;
   $('split-description').textContent = groupInfo().archived ? 'Verborgen onderdeel · eerdere trainingen' : groupInfo().description || 'Jouw oefeningen, op jouw manier';
@@ -175,7 +177,7 @@ function render() {
   $('exercise-list').replaceChildren(...cards);
   $('empty-state').hidden = !!workout.length;
   updateContext();
-  if (!loaded) document.querySelectorAll('main button, main input').forEach(item => { item.disabled = true; });
+  if (!loaded) document.querySelectorAll('#main button, #main input').forEach(item => { item.disabled = true; });
 }
 function selectDate(value) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value) || value > localDate() || value < '1900-01-01') { updateContext(); return; }
@@ -250,12 +252,12 @@ $('delete-exercise').addEventListener('click', async () => {
     changeWorkout(getWorkout(state, date, split).filter(item => item.id !== editId)); $('exercise-dialog').close();
   }
 });
-$('settings-button').addEventListener('click', () => { recovery.refresh(); $('settings-dialog').showModal(); });
+navigation.onOpen('gegevens', () => { void recovery.refresh(); });
 $('history-button').addEventListener('click', () => {
   const items = Object.entries(state.sessions).sort(([a], [b]) => b.localeCompare(a)).map(([key, workout]) => {
     const [day, type] = key.split(':'); const button = document.createElement('button'); button.className = 'history-item';
     const description = document.createElement('div'); description.append(textNode('strong', `${groupInfo(type).name} · ${prettyDate(day)}`), textNode('small', `${workout.length} oefening${workout.length === 1 ? '' : 'en'}`));
-    button.append(description, textNode('span', '›')); button.addEventListener('click', () => { split = type; date = day; render(); $('history-dialog').close(); }); return button;
+    button.append(description, textNode('span', '›')); button.addEventListener('click', () => { split = type; date = day; render(); $('history-dialog').close(); navigation.open('training'); }); return button;
   });
   $('history-list').replaceChildren(...(items.length ? items : [textNode('p', 'Nog geen trainingen bewaard. Je eerste wijziging wordt automatisch opgeslagen.', 'settings-copy')]));
   $('history-dialog').showModal();
@@ -289,6 +291,7 @@ async function exportFile() {
 $('import-backup').addEventListener('click', () => { if (loaded) $('import-file').click(); });
 $('import-file').addEventListener('change', async event => {
   const file = event.target.files[0]; event.target.value = ''; if (!file) return;
+  let importedSuccessfully = false;
   try {
     if (file.size > 7 * 1024 * 1024) throw new Error('Het bestand is groter dan 7 MB.');
     const imported = validateState(JSON.parse(await file.text()));
@@ -298,16 +301,16 @@ $('import-file').addEventListener('change', async event => {
     if (!await confirmAction('Gegevens importeren?', `Dit bestand bevat ${count} oefening${count === 1 ? '' : 'en'}, ${sessions} opgeslagen training${sessions === 1 ? '' : 'en'} en ${weighings} weging${weighings === 1 ? '' : 'en'}. Het vervangt je huidige gegevens. De huidige opgeslagen gegevens blijven automatisch als lokale kopie bewaard.`, 'Importeren')) return;
     importing = true;
     $('main').inert = true;
-    $('settings-dialog').inert = true;
+    $('settings-page').inert = true;
     await saveQueue;
     if (failed) throw new Error('Bewaar of exporteer eerst je huidige wijzigingen voordat je gegevens vervangt.');
     await saveState(imported, { protectCurrent: 'import' });
     state = savedState = imported; split = imported.ui?.split || imported.groups.find(group => !group.archived).id; date = localDate(); failed = false;
     $('app-error').hidden = true; render(); progress.refresh(); setStatus('Bewaard op dit apparaat');
     $('backup-message').textContent = 'Import gelukt. Je gegevens zijn op dit apparaat bewaard.';
-    $('settings-dialog').close(); toast('Je oefeningen staan klaar.');
+    importedSuccessfully = true; toast('Je oefeningen staan klaar.');
   } catch (error) { $('backup-message').textContent = `Import niet uitgevoerd. ${error instanceof SyntaxError ? 'Dit is geen geldig JSON-bestand.' : error.message}`; }
-  finally { importing = false; $('main').inert = false; $('settings-dialog').inert = false; await recovery.refresh(); leaderboard.onSaved(); }
+  finally { importing = false; $('main').inert = false; $('settings-page').inert = false; if (importedSuccessfully) navigation.open('training'); await recovery.refresh(); leaderboard.onSaved(); }
 });
 $('update-button').addEventListener('click', async () => {
   await saveQueue; if (failed || !waitingWorker) return;
@@ -360,12 +363,12 @@ function changeState(next, options = {}) {
   const saved = queueSave(); render(); return saved;
 }
 const groups = setupGroups({ getState: () => state, canEdit: () => loaded && !importing, changeState, confirmAction, toast });
-const progress = setupProgress({ getState: () => state, canEdit: () => loaded && !importing, changeState, confirmAction, toast });
-const leaderboard = setupLeaderboard({ getState: () => savedState, canEdit: () => loaded && !importing, toast });
+const progress = setupProgress({ getState: () => state, canEdit: () => loaded && !importing, changeState, confirmAction, toast, navigation });
+const leaderboard = setupLeaderboard({ getState: () => savedState, canEdit: () => loaded && !importing, toast, navigation });
 const exerciseNames = setupExerciseNames({ loadSuggestions: () => leaderboard.getExerciseSuggestions() });
 const recovery = setupRecovery({ canEdit: () => ownsEditor && (loaded || recoverableLoadError) && !importing, canPreserveCurrent: () => loaded, confirmAction, toast, restoreState: async snapshot => {
   if (!ownsEditor || (!loaded && !recoverableLoadError) || importing || exporting) return false;
-  importing = true; $('main').inert = true; $('settings-dialog').inert = true;
+    importing = true; $('main').inert = true; $('settings-page').inert = true;
   try {
     await saveQueue;
     if (failed) throw new Error('Bewaar of exporteer eerst je huidige wijzigingen voordat je een kopie terugzet.');
@@ -375,7 +378,7 @@ const recovery = setupRecovery({ canEdit: () => ownsEditor && (loaded || recover
     loaded = true; recoverableLoadError = false; failed = false; $('app-error').hidden = true;
     $('import-backup').disabled = false; $('export-backup').disabled = false;
     render(); progress.refresh(); setStatus('Bewaard op dit apparaat'); return true;
-  } finally { importing = false; $('main').inert = false; $('settings-dialog').inert = false; leaderboard.onSaved(); }
+  } finally { importing = false; $('main').inert = false; $('settings-page').inert = false; leaderboard.onSaved(); }
 } });
 
 async function init() {
@@ -412,6 +415,6 @@ async function init() {
     setStatus('Opslag niet beschikbaar', true); $('import-backup').disabled = true; $('export-backup').disabled = true;
     await recovery.refresh();
   }
-  leaderboard.onSaved(); prepareOffline();
+  navigation.start(); leaderboard.onSaved(); prepareOffline();
 }
 init();
