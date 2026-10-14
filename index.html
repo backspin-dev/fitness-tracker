@@ -13,6 +13,7 @@
   <link rel="icon" href="./icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="./apple-touch-icon.png">
   <link rel="stylesheet" href="./styles.css">
+  <link rel="stylesheet" href="./stats.css">
   <script type="module" src="./app.js"></script>
   <title>Fitness — jouw training</title>
 </head>
@@ -21,6 +22,7 @@
     <header class="app-header">
       <div><p class="eyebrow">JOUW TRAINING. JOUW TEMPO.</p><h1>Fitness<span>.</span></h1></div>
       <div class="header-actions">
+        <button class="icon-button" id="progress-button" aria-label="Voortgang en lichaamsgewicht" title="Voortgang"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4v16h16M7 15l4-5 4 2 5-7"/></svg></button>
         <button class="icon-button" id="history-button" aria-label="Eerdere trainingen" title="Eerdere trainingen"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11a9 9 0 1 1 2.6 7M3 5v6h6m3-4v5l3 2"/></svg></button>
         <button class="icon-button" id="settings-button" aria-label="Instellingen en back-up" title="Instellingen"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 17h16M9 4v6m6 4v6"/></svg></button>
       </div>
@@ -36,11 +38,8 @@
         <div class="date-control"><label for="workout-date" id="date-label">Vandaag</label><input type="date" id="workout-date" aria-label="Trainingsdatum" min="1900-01-01"></div>
         <button class="icon-button" id="next-day" aria-label="Volgende dag"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m10 6 6 6-6 6"/></svg></button>
       </div>
-      <div class="split-tabs" role="tablist" aria-label="Trainingsschema">
-        <button role="tab" id="tab-push" data-split="push" aria-selected="true" aria-controls="workout-panel">Push</button>
-        <button role="tab" id="tab-pull" data-split="pull" aria-selected="false" aria-controls="workout-panel" tabindex="-1">Pull</button>
-        <button role="tab" id="tab-legs" data-split="legs" aria-selected="false" aria-controls="workout-panel" tabindex="-1">Legs</button>
-      </div>
+      <div class="scheme-heading"><span>JOUW SCHEMA</span><button id="groups-button" class="text-button">Schema aanpassen</button></div>
+      <div id="split-tabs" class="split-tabs" role="tablist" aria-label="Trainingsschema"></div>
       <section id="workout-panel" role="tabpanel" aria-labelledby="tab-push">
         <div class="section-heading"><div><h2 id="split-title">Push day</h2><p id="split-description">Borst, schouders & triceps</p></div><span id="exercise-count" class="count">0 oefeningen</span></div>
         <p class="source-note" id="source-note" hidden></p>
@@ -83,9 +82,49 @@
     <p id="backup-message" class="settings-copy" role="status"></p>
     <details><summary>Op je iPhone gebruiken</summary><p>Open deze pagina in Safari. Kies Deel → Zet op beginscherm → Open als webapp. Voer je trainingen vervolgens via dat icoon in.</p><p>De opslag in Safari en de geïnstalleerde webapp kan verschillen. Gebruik steeds hetzelfde icoon.</p></details>
     <details><summary>Privacy & opslag</summary><p>Alleen de appcode is openbaar. Je invoer blijft lokaal, behalve een back-up die je zelf opslaat of deelt. Er zijn geen trackers of advertenties. GitHub kan je IP-adres registreren bij het laden van de app.</p><p>Wie je ontgrendelde toestel gebruikt, kan de tracker openen. Je gegevens synchroniseren niet automatisch. Bij wissen of verlies van het toestel heb je een back-up nodig.</p><p id="storage-info">De app vraagt waar mogelijk om blijvende opslag.</p></details>
-    <div class="settings-bottom"><span id="offline-status">Offline gebruik voorbereiden…</span><span>v1.1</span></div>
+    <div class="settings-bottom"><span id="offline-status">Offline gebruik voorbereiden…</span><span>v1.2</span></div>
   </dialog>
 
+  <dialog id="groups-dialog" aria-labelledby="groups-title">
+    <div class="dialog-heading"><h2 id="groups-title">Jouw schema</h2><button class="icon-button close-dialog" aria-label="Sluiten">×</button></div>
+    <p class="settings-copy">Kies een indeling of maak je eigen onderdelen. Je eerdere trainingen blijven altijd behouden.</p>
+    <div class="preset-options"><button class="secondary" data-preset="ppl">Push / Pull / Legs</button><button class="secondary" data-preset="full">Full body</button><button class="secondary" data-preset="upper-lower">Upper / Lower</button></div>
+    <h3 class="small-heading">Jouw onderdelen</h3><div id="group-list"></div>
+    <form id="group-form"><label class="field-label" for="group-name">Nieuw onderdeel</label><div class="inline-form"><input id="group-name" class="text-input" maxlength="40" placeholder="Bijv. Full body B" autocomplete="off" required><button class="primary" type="submit">Toevoegen</button></div></form>
+    <p id="groups-error" class="field-error" role="alert" hidden></p>
+    <details id="hidden-groups"><summary>Verborgen onderdelen</summary><div id="hidden-group-list"></div></details>
+  </dialog>
+  <dialog id="rename-group-dialog" aria-labelledby="rename-group-title"><form id="rename-group-form">
+    <div class="dialog-heading"><h2 id="rename-group-title">Naam aanpassen</h2><button type="button" class="icon-button close-dialog" aria-label="Sluiten">×</button></div>
+    <label class="field-label" for="rename-group-name">Naam van het onderdeel</label><input id="rename-group-name" class="text-input" maxlength="40" required>
+    <p id="rename-group-error" class="field-error" role="alert" hidden></p><button class="primary full" type="submit">Naam bewaren</button>
+  </form></dialog>
+  <dialog id="progress-dialog" aria-labelledby="progress-title">
+    <div class="dialog-heading"><h2 id="progress-title">Jouw voortgang</h2><button class="icon-button close-dialog" aria-label="Sluiten">×</button></div>
+    <div class="progress-tabs" role="tablist" aria-label="Soort voortgang">
+      <button id="progress-tab-exercise" data-progress="exercise" role="tab" aria-selected="true" aria-controls="progress-exercise">Oefeningen</button>
+      <button id="progress-tab-body" data-progress="body" role="tab" aria-selected="false" aria-controls="progress-body" tabindex="-1">Gewicht</button>
+      <button id="progress-tab-training" data-progress="training" role="tab" aria-selected="false" aria-controls="progress-training" tabindex="-1">Trainingen</button>
+    </div>
+    <section id="progress-exercise" role="tabpanel" aria-labelledby="progress-tab-exercise">
+      <label class="field-label" for="exercise-series">Oefening</label><select id="exercise-series" class="text-input"></select>
+      <div class="metric-switch" role="group" aria-label="Grafiekwaarde"><button class="secondary" id="chart-weight" aria-pressed="true">Gewicht (kg)</button><button class="secondary" id="chart-reps" aria-pressed="false">Reps</button></div>
+      <p id="exercise-summary" class="progress-summary"></p><div id="exercise-chart"></div>
+      <p class="chart-note">Je opgeslagen gewicht en reps per training. Vergelijk beide waarden: meer gewicht met minder reps vertelt een ander verhaal.</p>
+      <details><summary>Laatste 20 metingen</summary><div id="exercise-measurements" class="table-scroll"></div></details>
+    </section>
+    <section id="progress-body" role="tabpanel" aria-labelledby="progress-tab-body" hidden>
+      <p id="body-summary" class="progress-summary"></p><div id="body-chart"></div>
+      <form id="body-form" class="body-form"><div class="form-grid"><div><label class="field-label" for="body-date">Datum</label><input type="date" class="text-input" id="body-date" min="1900-01-01" required></div><div><label class="field-label" for="body-weight">Lichaamsgewicht (kg)</label><input class="text-input" id="body-weight" inputmode="decimal" placeholder="Bijv. 75,5" maxlength="6" required></div></div><p id="body-edit-note" class="chart-note"></p><p id="body-error" class="field-error" role="alert" hidden></p><button id="save-body" class="primary full" type="submit">Meting bewaren</button><button id="delete-body" class="danger full" type="button" hidden>Meting verwijderen</button></form>
+      <details><summary>Laatste 20 wegingen</summary><div id="body-measurements"></div></details>
+    </section>
+    <section id="progress-training" role="tabpanel" aria-labelledby="progress-tab-training" hidden>
+      <label class="field-label" for="training-group">Onderdeel</label><select id="training-group" class="text-input"></select>
+      <div id="training-summary" class="summary-grid"></div><div id="training-chart"></div>
+      <p class="chart-note">Opgeslagen trainingen per week. Elke datum met oefeningen telt één keer per onderdeel. De laatste balk is de lopende week.</p>
+      <div id="training-comparison"></div>
+    </section>
+  </dialog>
   <dialog id="history-dialog" aria-labelledby="history-title"><div class="dialog-heading"><h2 id="history-title">Eerdere trainingen</h2><button class="icon-button close-dialog" aria-label="Sluiten">×</button></div><div id="history-list"></div></dialog>
   <dialog id="confirm-dialog" aria-labelledby="confirm-title"><h2 id="confirm-title">Weet je het zeker?</h2><p id="confirm-message" class="settings-copy"></p><div class="confirm-actions"><button id="confirm-cancel" class="secondary">Annuleren</button><button id="confirm-ok" class="primary">Doorgaan</button></div></dialog>
   <div id="toast" role="status" hidden></div>

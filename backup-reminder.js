@@ -70,5 +70,6 @@ export function snoozeReminder(reminder, today) {
 
 export function hasTrainingData(state) {
   return Object.values(state?.routines ?? {}).some(workout => Array.isArray(workout) && workout.length > 0) ||
-    Object.values(state?.sessions ?? {}).some(workout => Array.isArray(workout) && workout.length > 0);
+    Object.values(state?.sessions ?? {}).some(workout => Array.isArray(workout) && workout.length > 0) ||
+    Object.keys(state?.bodyWeights ?? {}).length > 0;
 }

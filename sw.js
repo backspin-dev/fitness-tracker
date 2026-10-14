@@ -2,7 +2,7 @@
 
 // Bump this version whenever any app-shell file changes. Each installation
 // downloads a complete shell before it becomes available to the user.
-const CACHE_VERSION = 'v5';
+const CACHE_VERSION = 'v8';
 const SCOPE = self.registration.scope;
 const CACHE_PREFIX = `fitness-tracker:${encodeURIComponent(SCOPE)}:`;
 const CACHE_NAME = `${CACHE_PREFIX}${CACHE_VERSION}`;
@@ -12,6 +12,10 @@ const SHELL_FILES = [
   'app.js',
   'data.js',
   'backup-reminder.js',
+  'stats.js',
+  'stats.css',
+  'progress-ui.js',
+  'groups-ui.js',
   'manifest.webmanifest',
   'icon.svg',
   'icon-192.png',

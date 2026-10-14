@@ -1,0 +1,4 @@
+.stats-chart{display:block;width:100%;height:auto;overflow:visible;fill:none;stroke:none;font-family:inherit;font-variant-numeric:tabular-nums}
+.stats-chart text{font-family:inherit;letter-spacing:0}
+.stats-chart-empty{padding:35px 12px;text-align:center;font-size:13px;line-height:1.6;color:var(--muted,#a0a898)}
+@media(prefers-contrast:more){.stats-chart text{fill:#f2f4ed}.stats-chart line{stroke:#718065}}

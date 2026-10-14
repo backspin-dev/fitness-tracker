@@ -1,8 +1,10 @@
 import { createState, localDate, getWorkout, getPreviousWorkout, commitWorkout, loadState, saveState, validateState, exportBackup, loadBackupReminder, saveBackupReminder } from './data.js';
+import { setupGroups } from './groups-ui.js';
+import { setupProgress } from './progress-ui.js';
 import { createReminder, isReminderDue, confirmBackup, snoozeReminder, hasTrainingData } from './backup-reminder.js';
 
 const $ = id => document.getElementById(id);
-const splitInfo = { push: ['Push day', 'Borst, schouders & triceps'], pull: ['Pull day', 'Rug & biceps'], legs: ['Leg day', 'Benen & billen'] };
+function groupInfo(id = split) { return state.groups.find(group => group.id === id); }
 const dateFormat = new Intl.DateTimeFormat('nl-NL', { day: 'numeric', month: 'long', year: 'numeric' });
 let state = createState(), split = 'push', date = localDate(), loaded = false;
 let saveQueue = Promise.resolve(), revision = 0, pending = 0, failed = false;
@@ -119,7 +121,7 @@ function updateContext() {
   const recorded = Object.hasOwn(state.sessions, `${date}:${split}`);
   const previous = recorded ? null : getPreviousWorkout(state, date, split);
   $('source-note').hidden = !previous || !workout.length;
-  $('source-note').textContent = previous ? `Klaargezet vanuit je laatste ${split[0].toUpperCase() + split.slice(1)}-training · ${prettyDate(previous.date)}` : '';
+  $('source-note').textContent = previous ? `Klaargezet vanuit je laatste ${groupInfo().name}-training · ${prettyDate(previous.date)}` : '';
   $('exercise-count').textContent = `${workout.length} oefening${workout.length === 1 ? '' : 'en'}`;
   $('history-note').hidden = date === today;
   $('history-note').textContent = recorded
@@ -167,12 +169,19 @@ function makeMetric(exercise, field) {
 }
 function render() {
   document.querySelectorAll('main button, main input').forEach(item => { item.disabled = false; });
-  $('split-title').textContent = splitInfo[split][0];
-  $('split-description').textContent = splitInfo[split][1];
-  document.querySelectorAll('[data-split]').forEach(button => {
-    const selected = button.dataset.split === split;
-    button.setAttribute('aria-selected', String(selected)); button.tabIndex = selected ? 0 : -1;
-  });
+  if (!groupInfo()) split = state.groups.find(group => !group.archived).id;
+  $('split-title').textContent = groupInfo().name;
+  $('split-description').textContent = groupInfo().archived ? 'Verborgen onderdeel · eerdere trainingen' : groupInfo().description || 'Jouw oefeningen, op jouw manier';
+  const visibleGroups = state.groups.filter(group => !group.archived || group.id === split);
+  $('split-tabs').replaceChildren(...visibleGroups.map(group => {
+    const button = textNode('button', group.name);
+    button.id = `tab-${group.id}`; button.dataset.split = group.id;
+    button.title = group.name; button.setAttribute('role', 'tab');
+    button.setAttribute('aria-controls', 'workout-panel');
+    button.setAttribute('aria-selected', String(group.id === split));
+    button.tabIndex = group.id === split ? 0 : -1;
+    return button;
+  }));
   $('workout-panel').setAttribute('aria-labelledby', `tab-${split}`);
   const workout = getWorkout(state, date, split);
   const cards = workout.map((exercise, index) => {
@@ -224,14 +233,15 @@ function confirmAction(title, message, action) {
 }
 
 document.querySelectorAll('.close-dialog').forEach(button => button.addEventListener('click', () => button.closest('dialog').close()));
-document.querySelectorAll('[data-split]').forEach(button => {
-  button.addEventListener('click', () => { split = button.dataset.split; render(); });
-  button.addEventListener('keydown', event => {
-    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
-    event.preventDefault(); const keys = Object.keys(splitInfo), index = keys.indexOf(split);
-    split = event.key === 'Home' ? 'push' : event.key === 'End' ? 'legs' : keys[(index + (event.key === 'ArrowRight' ? 1 : 2)) % 3];
-    render(); $(`tab-${split}`).focus();
-  });
+$('split-tabs').addEventListener('click', event => {
+  const button = event.target.closest('[data-split]'); if (!button || !loaded || importing) return;
+  split = button.dataset.split; render();
+});
+$('split-tabs').addEventListener('keydown', event => {
+  if (!loaded || importing || !['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+  event.preventDefault(); const keys = state.groups.filter(group => !group.archived || group.id === split).map(group => group.id), index = keys.indexOf(split);
+  split = event.key === 'Home' ? keys[0] : event.key === 'End' ? keys.at(-1) : keys[(index + (event.key === 'ArrowRight' ? 1 : keys.length - 1)) % keys.length];
+  render(); $(`tab-${split}`).focus();
 });
 $('workout-date').addEventListener('change', event => selectDate(event.target.value));
 $('previous-day').addEventListener('click', () => moveDate(-1));
@@ -259,7 +269,7 @@ $('settings-button').addEventListener('click', () => { updateBackupReminder(); $
 $('history-button').addEventListener('click', () => {
   const items = Object.entries(state.sessions).sort(([a], [b]) => b.localeCompare(a)).map(([key, workout]) => {
     const [day, type] = key.split(':'); const button = document.createElement('button'); button.className = 'history-item';
-    const description = document.createElement('div'); description.append(textNode('strong', `${type[0].toUpperCase() + type.slice(1)} · ${prettyDate(day)}`), textNode('small', `${workout.length} oefening${workout.length === 1 ? '' : 'en'}`));
+    const description = document.createElement('div'); description.append(textNode('strong', `${groupInfo(type).name} · ${prettyDate(day)}`), textNode('small', `${workout.length} oefening${workout.length === 1 ? '' : 'en'}`));
     button.append(description, textNode('span', '›')); button.addEventListener('click', () => { split = type; date = day; render(); $('history-dialog').close(); }); return button;
   });
   $('history-list').replaceChildren(...(items.length ? items : [textNode('p', 'Nog geen trainingen bewaard. Je eerste wijziging wordt automatisch opgeslagen.', 'settings-copy')]));
@@ -312,14 +322,15 @@ $('import-file').addEventListener('change', async event => {
     const imported = validateState(JSON.parse(await file.text()));
     const count = Object.values(imported.routines).reduce((sum, list) => sum + list.length, 0);
     const sessions = Object.keys(imported.sessions).length;
-    if (!await confirmAction('Gegevens importeren?', `Dit bestand bevat ${count} oefeningen in je schema’s en ${sessions} bewaarde trainingen. Het vervangt je huidige gegevens op dit apparaat. Bewaar die eerst als back-up als je ze wilt houden.`, 'Importeren')) return;
+    const weighings = Object.keys(imported.bodyWeights).length;
+    if (!await confirmAction('Gegevens importeren?', `Dit bestand bevat ${count} oefeningen in je schema’s en ${sessions} bewaarde trainingen en ${weighings} wegingen. Het vervangt je huidige gegevens op dit apparaat. Bewaar die eerst als back-up als je ze wilt houden.`, 'Importeren')) return;
     importing = true;
     $('main').inert = true;
     $('settings-dialog').inert = true;
     await saveQueue;
     await saveState(imported);
-    state = imported; split = imported.ui?.split || 'push'; date = localDate(); failed = false;
-    $('app-error').hidden = true; render(); setStatus('Bewaard op dit apparaat');
+    state = imported; split = imported.ui?.split || imported.groups.find(group => !group.archived).id; date = localDate(); failed = false;
+    $('app-error').hidden = true; render(); progress.refresh(); setStatus('Bewaard op dit apparaat');
     $('backup-message').textContent = 'Import gelukt. Je gegevens zijn op dit apparaat bewaard.';
     $('settings-dialog').close(); toast('Je oefeningen staan klaar.');
   } catch (error) { $('backup-message').textContent = `Import niet uitgevoerd. ${error instanceof SyntaxError ? 'Dit is geen geldig JSON-bestand.' : error.message}`; }
@@ -368,6 +379,17 @@ async function prepareOffline() {
     $('offline-status').textContent = 'Klaar voor offline gebruik';
   } catch { $('offline-status').textContent = 'Offline laden is nog niet gelukt'; }
 }
+function changeState(next, options = {}) {
+  if (!loaded || importing) return Promise.resolve(false);
+  state = validateState(next);
+  if (options.selectFromState) split = state.ui.split;
+  if (options.today) date = localDate();
+  state.ui = { split, date };
+  const saved = queueSave(); render(); return saved;
+}
+const groups = setupGroups({ getState: () => state, canEdit: () => loaded && !importing, changeState, confirmAction, toast });
+const progress = setupProgress({ getState: () => state, canEdit: () => loaded && !importing, changeState, confirmAction, toast });
+
 async function init() {
   render();
   try {
@@ -380,13 +402,13 @@ async function init() {
         }).catch(() => resolve(false));
       });
     }
-    state = await loadState() || createState(); split = state.ui?.split || 'push'; loaded = canEdit;
+    state = await loadState() || createState(); split = state.ui?.split || state.groups.find(group => !group.archived).id; loaded = canEdit;
     render();
     if (canEdit) await prepareBackupReminder();
     if (!canEdit) {
       showError('De tracker staat al open in een ander tabblad. Sluit dat tabblad en laad deze pagina opnieuw om te wijzigen.');
       setStatus('Geopend als leesweergave'); $('import-backup').disabled = true;
-    } else setStatus(Object.keys(state.sessions).length || Object.values(state.routines).some(list => list.length) ? 'Bewaard op dit apparaat' : 'Alleen op dit apparaat');
+    } else setStatus(hasTrainingData(state) ? 'Bewaard op dit apparaat' : 'Alleen op dit apparaat');
     if (navigator.storage?.persist) {
       navigator.storage.persist().then(persistent => {
         $('storage-info').textContent = persistent ? 'Blijvende opslag is toegestaan. Maak daarnaast een back-up voor verlies of wissen van je toestel.' : 'Je browser garandeert geen blijvende opslag. Maak daarom regelmatig een back-up.';

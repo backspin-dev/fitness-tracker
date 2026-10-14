@@ -4,7 +4,7 @@ import {
   createReminder, validateReminder, isReminderDue, confirmBackup, snoozeReminder, hasTrainingData,
 } from '../backup-reminder.js';
 import {
-  createState, commitWorkout, exportBackup, validateState,
+  createState, commitWorkout, exportBackup, validateState, setBodyWeight,
   loadState, saveState, loadBackupReminder, saveBackupReminder,
 } from '../data.js';
 
@@ -70,12 +70,13 @@ test('an early snooze does not shorten the original 14-day period', () => {
   assert.equal(isReminderDue(reminder, '2026-10-15'), true);
 });
 
-test('reminders need actual exercises in a routine or historical snapshot', () => {
+test('reminders need exercises or body-weight measurements, including weight-only usage', () => {
   const empty = createState();
   assert.equal(hasTrainingData(empty), false);
   assert.equal(hasTrainingData({ ...empty, sessions: { '2026-10-01:push': [] } }), false);
   assert.equal(hasTrainingData({ ...empty, routines: { ...empty.routines, push: workout } }), true);
   assert.equal(hasTrainingData(commitWorkout(empty, '2026-10-01', 'pull', workout)), true);
+  assert.equal(hasTrainingData(setBodyWeight(empty, '2026-10-01', 75.5)), true);
 });
 
 test('malformed reminder data is rejected and valid metadata is copied', () => {
@@ -135,12 +136,17 @@ function memoryIndexedDB(records) {
 
 test('reminder storage is isolated from legacy workout storage and backup imports/exports', async () => {
   const original = globalThis.indexedDB;
-  const state = commitWorkout(createState(), '2026-10-01', 'push', workout);
-  const records = new Map([['current', structuredClone(state)]]);
+  const legacy = {
+    schemaVersion: 1, routines: { push: workout, pull: [], legs: [] },
+    sessions: { '2026-10-01:push': workout }, ui: { date: '2026-10-01', split: 'push' },
+  };
+  const state = validateState(legacy);
+  const records = new Map([['current', structuredClone(legacy)]]);
   globalThis.indexedDB = memoryIndexedDB(records);
   try {
     assert.equal(await loadBackupReminder(), null);
     assert.deepEqual(await loadState(), state);
+    assert.equal((await loadState()).schemaVersion, 2);
     const backupBefore = exportBackup(state);
     const reminder = createReminder('2026-10-13');
     await saveBackupReminder(reminder);
@@ -149,8 +155,9 @@ test('reminder storage is isolated from legacy workout storage and backup import
     assert.equal(exportBackup(await loadState()), backupBefore);
     assert.deepEqual([...records.keys()].sort(), ['backup-reminder', 'current']);
 
-    const imported = validateState(JSON.parse(backupBefore));
+    const imported = validateState(JSON.parse(JSON.stringify(legacy)));
     await saveState(imported);
+    assert.equal(records.get('current').schemaVersion, 2);
     assert.deepEqual(await loadBackupReminder(), reminder);
     assert.equal(Object.hasOwn(imported, 'backupReminder'), false);
     records.set('backup-reminder', { broken: true });

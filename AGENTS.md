@@ -20,7 +20,17 @@ de app licht en de privacyregels hieronder intact.
 ## Ontwikkeling
 
 - `index.html`, `styles.css` en `app.js`: interface en bediening.
-- `data.js`: gegevensmodel, opslag en back-upvalidatie.
+- `groups-ui.js`: schema's kiezen, eigen onderdelen, hernoemen, verbergen en
+  terugzetten. Verbergen bewaart oefeningen en geschiedenis.
+- `progress-ui.js`: voortgangsscherm en lichaamsgewicht invoeren.
+- `stats.js` en `stats.css`: statistieken en grafieken zonder externe resources.
+- `data.js`: gegevensmodel, migratie, opslag en back-upvalidatie. Schemaversie 2
+  bevat `groups`, `routines`, `sessions`, `bodyWeights` en de optionele `ui`.
+  Blijf versie 1 uit lokale opslag en back-ups accepteren en verlies bij migratie
+  geen IDs, oefeningen, gewichten, reps of trainingsdatums.
+- `backup-reminder.js`: lokale herinnering; ook alleen lichaamsgewicht telt als
+  gegevens waarvoor een back-up nodig is. Herinneringsmetadata zit apart van de
+  geëxporteerde gegevens.
 - `sw.js`: offline app-shell. Verhoog `CACHE_VERSION` als een gecachet bestand
   verandert. Installeer updates pas na toestemming in de app of het sluiten van
   de oude vensters; onderbreek nooit ongemerkt een lopende invoer.
@@ -30,10 +40,19 @@ de app licht en de privacyregels hieronder intact.
 Gebruik voor lokaal testen een HTTP-server, bijvoorbeeld `python3 -m http.server
 8000`, en open `http://localhost:8000/`. Open de HTML niet via `file://`.
 
-Controleer JavaScript-syntaxis met `node --check app.js`, `node --check data.js`
-en `node --check sw.js`. Als er tests in de repository staan, voer die ook uit.
+Controleer JavaScript-syntaxis van gewijzigde modules met `node --check` en voer
+de model-, herinnerings- en statistiektests uit met `node --test tests/*.test.mjs`.
 Controleer bij relevante wijzigingen op een mobiel scherm: wijzigingen bewaren
-na herladen, afzonderlijke Push/Pull/Legs-invoer, datumwissels, toevoegen en
-verwijderen, geldige en ongeldige back-ups, offline openen na eerste installatie,
-de updateknop, en werking onder een subdirectory. Een andere browser moet met
-een leeg logboek beginnen. Geen echte gebruikersgegevens in tests opnemen.
+na herladen, afzonderlijke invoer per onderdeel, vorige training automatisch
+overnemen, datumwissels, toevoegen en verwijderen. Controleer wisselen tussen
+Push/Pull/Legs, Full body en Upper/Lower, eigen onderdelen, hernoemen en
+verbergen/terugzetten zonder verlies van geschiedenis. Controleer lege grafieken,
+gewicht/reps per oefening, lichaamsgewicht per datum en trainingstellingen.
+Trainingstellingen betreffen niet-lege opgeslagen trainingen, geen voltooiingsstatus;
+er zijn geen afzonderlijke sets of berekend trainingsvolume.
+
+Controleer geldige en ongeldige back-ups, versie-1-migratie en een versie-2-
+export/import met eigen onderdelen en lichaamsgewicht. Controleer offline openen
+na eerste installatie, de updateknop, en werking onder een subdirectory. Een andere
+browser moet met een leeg logboek beginnen. Geen echte gebruikersgegevens in
+tests opnemen.
