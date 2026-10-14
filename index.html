@@ -82,7 +82,7 @@
     <p id="backup-message" class="settings-copy" role="status"></p>
     <details><summary>Op je iPhone gebruiken</summary><p>Open deze pagina in Safari. Kies Deel → Zet op beginscherm → Open als webapp. Voer je trainingen vervolgens via dat icoon in.</p><p>De opslag in Safari en de geïnstalleerde webapp kan verschillen. Gebruik steeds hetzelfde icoon.</p></details>
     <details><summary>Privacy & opslag</summary><p>Alleen de appcode is openbaar. Je invoer blijft lokaal, behalve een back-up die je zelf opslaat of deelt. Er zijn geen trackers of advertenties. GitHub kan je IP-adres registreren bij het laden van de app.</p><p>Wie je ontgrendelde toestel gebruikt, kan de tracker openen. Je gegevens synchroniseren niet automatisch. Bij wissen of verlies van het toestel heb je een back-up nodig.</p><p id="storage-info">De app vraagt waar mogelijk om blijvende opslag.</p></details>
-    <div class="settings-bottom"><span id="offline-status">Offline gebruik voorbereiden…</span><span>v1.2</span></div>
+    <div class="settings-bottom"><span id="offline-status">Offline gebruik voorbereiden…</span><span>v1.3</span></div>
   </dialog>
 
   <dialog id="groups-dialog" aria-labelledby="groups-title">
@@ -108,9 +108,10 @@
     </div>
     <section id="progress-exercise" role="tabpanel" aria-labelledby="progress-tab-exercise">
       <label class="field-label" for="exercise-series">Oefening</label><select id="exercise-series" class="text-input"></select>
+      <div class="summary-tile rep-total"><strong id="exercise-rep-total">0</strong><span id="exercise-rep-count">Totaal reps · 0 trainingen</span></div>
       <div class="metric-switch" role="group" aria-label="Grafiekwaarde"><button class="secondary" id="chart-weight" aria-pressed="true">Gewicht (kg)</button><button class="secondary" id="chart-reps" aria-pressed="false">Reps</button></div>
       <p id="exercise-summary" class="progress-summary"></p><div id="exercise-chart"></div>
-      <p class="chart-note">Je opgeslagen gewicht en reps per training. Vergelijk beide waarden: meer gewicht met minder reps vertelt een ander verhaal.</p>
+      <p class="chart-note">Je opgeslagen gewicht en reps per training. Vergelijk beide waarden: meer gewicht met minder reps vertelt een ander verhaal. Het totaal telt je ingevoerde reps voor dit onderdeel één keer per opgeslagen trainingsdag.</p>
       <details><summary>Laatste 20 metingen</summary><div id="exercise-measurements" class="table-scroll"></div></details>
     </section>
     <section id="progress-body" role="tabpanel" aria-labelledby="progress-tab-body" hidden>

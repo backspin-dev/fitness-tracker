@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { commitWorkout, getWorkout } from '../data.js';
 import {
-  listExerciseSeries, bodyWeightSeries, trainingSummary, weeklyTrainingCounts,
+  listExerciseSeries, exerciseRepSummary, bodyWeightSeries, trainingSummary, weeklyTrainingCounts,
   latestWorkoutComparison, renderLineChart, renderBarChart,
 } from '../stats.js';
 
@@ -44,6 +45,64 @@ test('exercise series use stable IDs across renames and never merge equal names 
   assert.equal(result.find(item => item.key === 'old-pull:lift-1').groupName, 'Old pull');
   result[0].points[0].weight = 999;
   assert.equal(JSON.stringify(input), before);
+});
+
+test('rep totals handle empty data, zero reps and the current date without counting future entries', () => {
+  assert.deepEqual(exerciseRepSummary([], '2024-04-02'), { totalReps: 0, trainingCount: 0 });
+  const points = [
+    { date: '2024-03-31', weight: 20, reps: 12 },
+    { date: '2024-04-01', weight: 25, reps: 0 },
+    { date: '2024-04-02', weight: 20, reps: 8 },
+    { date: '2024-04-03', weight: 20, reps: 100 },
+  ];
+  const before = JSON.stringify(points);
+  assert.deepEqual(exerciseRepSummary(points, '2024-04-02'), { totalReps: 20, trainingCount: 3 });
+  assert.equal(JSON.stringify(points), before);
+  assert.throws(() => exerciseRepSummary([], '2023-02-29'), /datum/);
+  assert.throws(() => exerciseRepSummary(points, '2 april 2024'), /datum/);
+});
+
+test('rep totals follow exercise identity after renaming and keep equal names and other groups separate', () => {
+  const input = state({ sessions: {
+    '2024-04-01:push': [exercise({ reps: 12 }), exercise({ id: 'lift-2', reps: 30 })],
+    '2024-04-02:push': [exercise({ name: 'New lift name', reps: 8 })],
+    '2024-04-02:old-pull': [exercise({ reps: 50 })],
+  } });
+  const before = JSON.stringify(input);
+  const series = listExerciseSeries(input);
+  assert.equal(series.find(item => item.key === 'push:lift-1').name, 'New lift name');
+  const totals = Object.fromEntries(series.map(item => [item.key, exerciseRepSummary(item.points, '2024-04-02')]));
+  assert.deepEqual(totals, {
+    'push:lift-1': { totalReps: 20, trainingCount: 2 },
+    'push:lift-2': { totalReps: 30, trainingCount: 1 },
+    'old-pull:lift-1': { totalReps: 50, trainingCount: 1 },
+  });
+  assert.equal(JSON.stringify(input), before);
+});
+
+test('editing a saved training replaces its rep count instead of accumulating each edit', () => {
+  const original = state();
+  const first = commitWorkout(original, '2024-04-01', 'push', [exercise({ reps: 10 })]);
+  const second = commitWorkout(first, '2024-04-02', 'push', [exercise({ reps: 12 })]);
+  const edited = commitWorkout(second, '2024-04-02', 'push', [exercise({ reps: 15 })]);
+  assert.deepEqual(exerciseRepSummary(listExerciseSeries(edited)[0].points, '2024-04-02'), {
+    totalReps: 25, trainingCount: 2,
+  });
+  assert.equal(second.sessions['2024-04-02:push'][0].reps, 12);
+  assert.deepEqual(original.sessions, {});
+});
+
+test('opening a routine or prefilling the previous training does not add reps to saved totals', () => {
+  const input = state();
+  assert.deepEqual(getWorkout(input, '2024-04-01', 'push'), [exercise()]);
+  assert.deepEqual(listExerciseSeries(input), []);
+  const saved = commitWorkout(input, '2024-04-01', 'push', [exercise({ reps: 12 })]);
+  const before = JSON.stringify(saved);
+  assert.deepEqual(getWorkout(saved, '2024-04-02', 'push'), [exercise({ reps: 12 })]);
+  assert.deepEqual(exerciseRepSummary(listExerciseSeries(saved)[0].points, '2024-04-02'), {
+    totalReps: 12, trainingCount: 1,
+  });
+  assert.equal(JSON.stringify(saved), before);
 });
 
 test('body weights are actual independent date-sorted observations, without gap filling', () => {

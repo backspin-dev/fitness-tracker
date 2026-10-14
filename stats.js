@@ -58,6 +58,18 @@ export function listExerciseSeries(state) {
   });
 }
 
+/** Tel de opgeslagen reps van één oefening t/m vandaag, één momentopname per training. */
+export function exerciseRepSummary(points, today) {
+  calendarDay(today);
+  return points.reduce((summary, point) => {
+    if (point.date <= today) {
+      summary.totalReps += point.reps;
+      summary.trainingCount++;
+    }
+    return summary;
+  }, { totalReps: 0, trainingCount: 0 });
+}
+
 export function bodyWeightSeries(state) {
   return Object.entries(state.bodyWeights ?? {})
     .map(([date, value]) => { calendarDay(date); return { date, value }; })

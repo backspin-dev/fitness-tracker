@@ -1,5 +1,5 @@
 import { localDate, setBodyWeight, deleteBodyWeight } from './data.js';
-import { listExerciseSeries, bodyWeightSeries, weeklyTrainingCounts, trainingSummary, latestWorkoutComparison, renderLineChart, renderBarChart } from './stats.js';
+import { listExerciseSeries, exerciseRepSummary, bodyWeightSeries, weeklyTrainingCounts, trainingSummary, latestWorkoutComparison, renderLineChart, renderBarChart } from './stats.js';
 
 export function setupProgress({ getState, canEdit, changeState, confirmAction, toast }) {
   const $ = id => document.getElementById(id);
@@ -30,6 +30,9 @@ export function setupProgress({ getState, canEdit, changeState, confirmAction, t
     $('exercise-series').replaceChildren(...options); $('exercise-series').value = selectedExercise; $('exercise-series').disabled = !series.length;
     $('chart-weight').setAttribute('aria-pressed', String(metric === 'weight')); $('chart-reps').setAttribute('aria-pressed', String(metric === 'reps'));
     const current = series.find(item => item.key === selectedExercise), points = current?.points.filter(point => point.date <= localDate()) || [];
+    const reps = exerciseRepSummary(points, localDate());
+    $('exercise-rep-total').textContent = number(reps.totalReps);
+    $('exercise-rep-count').textContent = `Totaal reps · ${number(reps.trainingCount)} ${reps.trainingCount === 1 ? 'training' : 'trainingen'}`;
     const unit = metric === 'weight' ? 'kg' : 'reps', first = points[0], last = points.at(-1);
     $('exercise-summary').textContent = last ? `${number(last[metric])} ${unit} op ${prettyDate(last.date)}${points.length > 1 ? ` · ${delta(Math.round((last[metric] - first[metric]) * 100) / 100, unit)} sinds je eerste meting` : ' · je eerste meting'}` : 'Bewaar een training om je voortgang te zien.';
     renderLineChart($('exercise-chart'), points.map(point => ({ date: point.date, value: point[metric] })), { label: `${current?.name || 'Oefening'}: ${metric === 'weight' ? 'gewicht' : 'reps'}`, unit });

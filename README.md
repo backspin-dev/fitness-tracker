@@ -21,8 +21,11 @@ in je geschiedenis en voortgang.
 
 Het grafiekicoon bovenaan opent **Jouw voortgang**:
 
-- **Oefeningen:** bekijk het gewicht of aantal reps per opgeslagen training.
-  Een naamswijziging houdt de geschiedenis van die oefening bij elkaar.
+- **Oefeningen:** bekijk het gewicht of aantal reps per opgeslagen training en
+  het totaal aantal ingevoerde reps per oefening binnen dat onderdeel. Iedere
+  opgeslagen trainingsdag telt één keer; opnieuw aanpassen telt niet dubbel.
+  Klaargezette oefeningen tellen pas mee zodra je die training bewaart of
+  aanpast. Een naamswijziging houdt de geschiedenis bij elkaar.
 - **Gewicht:** voeg je lichaamsgewicht per datum toe en bekijk de grafiek.
   Per datum is er één meting; opnieuw bewaren vervangt die meting.
 - **Trainingen:** bekijk aantallen per week en over de laatste 28 dagen, voor
