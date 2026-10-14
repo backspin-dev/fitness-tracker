@@ -1,4 +1,4 @@
-import { EXERCISE_CATALOG, normalizeExerciseName, resolveRankingExercise, suggestExercises } from './exercise-catalog.js';
+import { EXERCISE_CATALOG, normalizeExerciseName, detectExercise, exerciseSearchScore, resolveRankingExercise, suggestExercises } from './exercise-catalog.js';
 
 // Een korte lijst helpt bij kiezen; vrij typen blijft altijd mogelijk.
 export function matchingExerciseSuggestions(value, publicNames = [], limit = 6) {
@@ -9,7 +9,7 @@ export function matchingExerciseSuggestions(value, publicNames = [], limit = 6) 
   for (const item of publicNames) {
     if (found.length >= limit) break;
     if (typeof item.exercise_key !== 'string' || typeof item.exercise_name !== 'string' ||
-        seen.has(item.exercise_key) || !normalizeExerciseName(item.exercise_name).includes(query)) continue;
+        seen.has(item.exercise_key) || detectExercise(item.exercise_name) || !Number.isFinite(exerciseSearchScore(value, item.exercise_name))) continue;
     found.push({ key: item.exercise_key, label: item.exercise_name, community: true });
     seen.add(item.exercise_key);
   }

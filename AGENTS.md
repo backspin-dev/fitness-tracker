@@ -64,11 +64,16 @@ de app licht en de privacyregels hieronder intact.
   Totale herhalingen zijn de som van **sets × reps** over opgeslagen trainingen;
   de repsgrafiek toont **reps per set**. Klaargezette trainingen tellen pas na
   bewaren mee; aanpassen van een opgeslagen dag vervangt die dag.
-- `exercise-catalog.js`: 150 echte vaste ranglijstoefeningen met onderzoeksbronnen,
+- `exercise-catalog.js`: echte vaste ranglijstoefeningen met onderzoeksbronnen,
   zorgvuldig gekozen aliassen en invoersuggesties. Voeg geen verzonnen
   catalogusoefeningen toe. Normaliseer hoofdletters en witruimte; voeg alleen bekende
-  schrijfvarianten samen. Gebruik geen algemene enkelvoud-/meervoudstam of fuzzy
-  samenvoeging: apparaat, vrije gewichten en andere wezenlijke uitvoeringen
+  schrijfvarianten samen. Bewaar bronnen voor aanvullingen in `catalog-sources.json`.
+  Zoeksuggesties mogen bekende spelfouten en één kleine typefout per langer woord
+  herkennen, mits alle zoekwoorden relevant blijven. Zoektermen zoals bent over
+  row mogen passende barbell- en dumbbellopties tonen. Dit verandert nooit de
+  ingevoerde naam, automatische videoherkenning of ranglijstidentiteit. Gebruik
+  daarvoor geen algemene enkelvoud-/meervoudstam of fuzzy samenvoeging: apparaat,
+  vrije gewichten en andere wezenlijke uitvoeringen
   blijven onderscheiden. Onbekende namen vormen eigen ranglijsten op basis van
   hoofdletter-, witruimte- en leestekennormalisatie; raad daarbij geen meervoud
   of betekenis. Een handmatige `rankingKey` mag alleen een bekende cataloguskey
@@ -93,7 +98,11 @@ de app licht en de privacyregels hieronder intact.
   onbekende eigen namen; een handmatige ranglijstkoppeling is geen bewijs van de
   uitvoering. Bewaar onderzoeksbronnen in `video-sources.json`. Ontbrekende goede
   video's blijven ontbrekend; vul geen fictieve IDs of verkeerde varianten in.
-  Toon Bron met een directe YouTube-link. Verwijder de iframe bij dichtklappen
+  Geef korte directe demonstraties van opleiders, sportscholen, fysiotherapeuten
+  en fabrikanten voorrang boven lange influencer-, vlog- of workoutcontent.
+  Gebruik alleen catalogusoefeningen, nooit eigen gebruikersnamen als videobron.
+  Toon een duidelijk video-icoon met Uitlegvideo van oefening en Bron met een
+  directe YouTube-link. Verwijder de iframe bij dichtklappen
   en het verlaten van Training. De iframe geeft alleen de app-origin door via
   strict-origin-when-cross-origin; dat is nodig om YouTube-fout 153 te vermijden.
   Beloof geen advertentievrije, offline of blijvend beschikbare YouTube-video's.

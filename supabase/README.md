@@ -27,7 +27,7 @@ lichaamsgewicht en het volledige logboek worden nooit verstuurd.
 
 ## Oefeningen en privacy
 
-De catalogus in `exercise-catalog.js` bevat 150 echte oefeningen met vaste
+De catalogus in `exercise-catalog.js` bevat gecontroleerde echte oefeningen met vaste
 sleutels. Alleen expliciete
 aliassen worden samengevoegd: Squat en Squats delen één ranglijst. Bench press,
 Bench press machine en Dumbbell bench press blijven verschillende oefeningen.

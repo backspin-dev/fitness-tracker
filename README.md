@@ -54,18 +54,26 @@ voor die trainingsdag. De app registreert geen verschillende waarden per losse s
 
 ## Uitlegvideo's
 
-Bij bekende oefeningen met een passende video staat **Uitlegvideo** onder de
+Bij bekende oefeningen met een passende video staat een video-icoon met
+**Uitlegvideo van oefening** onder de
 sets en reps. Open dit om de YouTube-speler te laden. Onder de video staat
 **Bron** met een directe link naar dezelfde video op YouTube. Dichtklappen of
 naar een andere pagina gaan stopt de speler. Een oefening zonder gecontroleerde
 match krijgt geen videoknop; eigen oefennamen blijven altijd mogelijk.
 
-Alle 150 catalogusoefeningen hebben momenteel een referentie (147 unieke video's).
+225 van de 227 catalogusoefeningen hebben momenteel een referentie (222 unieke video's).
+220 referenties duren hooguit één minuut; de langste duurt 84 seconden. De selectie
+geeft korte directe demonstraties van opleiders, sportscholen, fysiotherapeuten en
+fabrikanten voorrang boven lange influencer-, vlog- of workoutcontent. Twintig
+eerdere referenties zijn vervangen. Twee uitvoeringen hebben bewust geen video
+omdat geen voldoende zekere korte demonstratie is bevestigd.
 Titels, makers en uitvoeringsvarianten zijn gecontroleerd aan de hand van openbare
 bronpagina's en videometadata; niet alle video's zijn volledig visueel bekeken.
 De broncontrole staat in `video-sources.json`. De koppeling gebruikt de bekende
 oefennaam en aliassen, geen gok op basis van gewicht of een ranglijstcorrectie.
-Een machine, dumbbell en barbell blijven verschillende uitvoeringen.
+Een machine, dumbbell en barbell blijven verschillende uitvoeringen. Alleen
+herkende catalogusoefeningen krijgen een video, niet zelfbedachte gebruikersnamen
+of benamingen die alleen via de zoekhulp op een oefening lijken.
 
 Video's hebben internet nodig en worden niet in het logboek, back-ups of de
 appcache opgeslagen. Voor openvouwen worden geen thumbnails, spelers of
@@ -154,12 +162,17 @@ het typen zie je een korte lijst met passende oefeningen binnen een vast
 begrensd vlak. De invoervelden en bewaaractie blijven op hun plek terwijl de
 resultaten veranderen. Tik op een suggestie
 of gebruik je eigen tekst; een keuze uit de lijst is nooit verplicht. De
-catalogus bevat **150 bestaande oefeningen** en herkenbare varianten,
-gecontroleerd aan de hand van de [ACE-oefenbibliotheek](https://www.acefitness.org/resources/everyone/exercise-library/)
-en [NASM-oefenbibliotheek](https://www.nasm.org/resource-center/exercise-library).
+catalogus bevat **227 bestaande oefeningen** en herkenbare varianten,
+gecontroleerd aan de hand van onder meer [ACE](https://www.acefitness.org/resources/everyone/exercise-library/),
+[NASM](https://www.nasm.org/resource-center/exercise-library), PureGym, opleiders en
+apparaatfabrikanten. De bronnen voor de 77 aanvullingen staan in `catalog-sources.json`.
+Zoeken herkent onder meer `dumbel`/`dumbell` en kleine typefouten. `Bent over row`
+kan barbell- en dumbbellopties voorstellen. Alle zoekwoorden blijven bepalend:
+bij `dumbell row` verschijnen geen squats. Zoekhulp verandert nooit de eigen
+invoer, videokoppeling of ranglijstidentiteit zonder een keuze uit de suggesties.
 De app gebruikt alleen namen en aliassen; er worden geen instructies of
 afbeeldingen van deze bronnen geladen. Bekende catalogusoefeningen staan vooraan. Andere gedeelde namen herken je aan
-**Door gebruikers**; die zijn door gebruikers bedacht en worden niet als
+**Door gebruikers**; die zijn door gebruikers ingevoerd en worden niet als
 gecontroleerde catalogusoefeningen gepresenteerd. Suggesties helpen om dezelfde
 oefening herkenbaar te houden. Bekende varianten, zoals
 **Squat** en **Squats**, horen bij dezelfde ranglijstoefening. Verschillende

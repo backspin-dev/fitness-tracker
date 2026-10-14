@@ -4,7 +4,11 @@ export function createExerciseVideo(exercise, { document = globalThis.document, 
   const video = findVideo(exercise);
   if (!video) return null;
   const details = document.createElement('details'); details.className = 'exercise-video';
-  const summary = document.createElement('summary'); summary.textContent = 'Uitlegvideo';
+  const summary = document.createElement('summary');
+  const icon = document.createElement('span'); icon.className = 'exercise-video-icon';
+  icon.setAttribute('aria-hidden', 'true');
+  const label = document.createElement('span'); label.textContent = 'Uitlegvideo van oefening';
+  summary.append(icon, label);
   const content = document.createElement('div'); content.className = 'exercise-video-content';
   details.append(summary, content);
   details.addEventListener('toggle', () => {

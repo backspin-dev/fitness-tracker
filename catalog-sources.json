@@ -1,0 +1,869 @@
+{
+  "checkedAt": "2026-10-14",
+  "catalogCount": 227,
+  "baselineCount": 150,
+  "baselineSources": [
+    "https://www.nasm.org/resource-center/exercise-library",
+    "https://www.acefitness.org/resources/everyone/exercise-library/"
+  ],
+  "additions": [
+    {
+      "key": "ex:smith-machine-squat",
+      "label": "Smith machine squat",
+      "aliases": [
+        "Smith machine squats",
+        "Smith squat",
+        "Squat Smith machine",
+        "Squat Smith apparaat"
+      ],
+      "catalogSourceUrl": "https://www.puregym.com/blog/free-weights-beginners-guide/"
+    },
+    {
+      "key": "ex:hack-squat-machine",
+      "label": "Hack squat machine",
+      "aliases": [
+        "Machine hack squat",
+        "Machine hack squats",
+        "Hack squat apparaat",
+        "Hack squat toestel"
+      ],
+      "catalogSourceUrl": "https://www.puregym.com/exercises/legs/quad-exercises/squats/hack-squat/"
+    },
+    {
+      "key": "ex:hip-thrust-machine",
+      "label": "Hip thrust machine",
+      "aliases": [
+        "Machine hip thrust",
+        "Machine hip thrusts",
+        "Glute drive machine",
+        "Machine glute drive",
+        "Hip thrust apparaat",
+        "Hip thrust toestel"
+      ],
+      "catalogSourceUrl": "https://www.youtube.com/watch?v=EAdDjw-k3ow"
+    },
+    {
+      "key": "ex:hip-abduction-machine",
+      "label": "Hip abduction machine",
+      "aliases": [
+        "Seated hip abduction machine",
+        "Hip abductor machine",
+        "Abductor machine",
+        "Heupabductie machine",
+        "Heupabductie apparaat"
+      ],
+      "catalogSourceUrl": "https://www.puregym.com/exercises/legs/inner-outer-thigh/seated-hip-abduction/"
+    },
+    {
+      "key": "ex:hip-adduction-machine",
+      "label": "Hip adduction machine",
+      "aliases": [
+        "Seated hip adduction machine",
+        "Hip adductor machine",
+        "Adductor machine",
+        "Heupadductie machine",
+        "Heupadductie apparaat"
+      ],
+      "catalogSourceUrl": "https://www.puregym.com/exercises/legs/inner-outer-thigh/seated-hip-adduction/"
+    },
+    {
+      "key": "ex:seated-calf-raise-machine",
+      "label": "Seated calf raise machine",
+      "aliases": [
+        "Machine seated calf raise",
+        "Seated calf raises machine",
+        "Seated calf raise apparaat",
+        "Zittende kuithef machine"
+      ],
+      "catalogSourceUrl": "https://www.youtube.com/watch?v=UoYD9G2zSMo"
+    },
+    {
+      "key": "ex:smith-machine-calf-raise",
+      "label": "Smith machine calf raise",
+      "aliases": [
+        "Smith machine calf raises",
+        "Smith calf raise",
+        "Calf raise Smith machine",
+        "Kuithef Smith machine"
+      ],
+      "catalogSourceUrl": "https://www.youtube.com/watch?v=iCffD_VzWEw"
+    },
+    {
+      "key": "ex:standing-dumbbell-calf-raise",
+      "label": "Standing dumbbell calf raise",
+      "aliases": [
+        "Standing dumbbell calf raises",
+        "Dumbbell standing calf raise",
+        "Standing calf raise dumbbells",
+        "Staande kuithef dumbbells"
+      ],
+      "catalogSourceUrl": "https://www.youtube.com/watch?v=wxwY7GXxL4k"
+    },
+    {
+      "key": "ex:bodyweight-standing-calf-raise",
+      "label": "Bodyweight standing calf raise",
+      "aliases": [
+        "Standing bodyweight calf raise",
+        "Bodyweight standing calf raises",
+        "Standing calf raise bodyweight",
+        "Staande kuithef lichaamsgewicht"
+      ],
+      "catalogSourceUrl": "https://www.puregym.com/blog/strength-for-calves/"
+    },
+    {
+      "key": "ex:sumo-deadlift",
+      "label": "Sumo deadlift",
+      "aliases": [
+        "Sumo deadlifts",
+        "Barbell sumo deadlift",
+        "Barbell sumo deadlifts",
+        "Sumo deadlift barbell"
+      ],
+      "catalogSourceUrl": "https://www.puregym.com/exercises/legs/hamstring-exercises/deadlifts/sumo-deadlift/"
+    },
+    {
+      "key": "ex:dumbbell-deadlift",
+      "label": "Dumbbell deadlift",
+      "aliases": [
+        "Dumbbell deadlifts",
+        "Deadlift dumbbells",
+        "Deadlift dumbbell"
+      ],
+      "catalogSourceUrl": "https://www.puregym.com/exercises/legs/hamstring-exercises/deadlifts/dumbbell-deadlift/"
+    },
+    {
+      "key": "ex:trap-bar-deadlift",
+      "label": "Trap bar deadlift",
+      "aliases": [
+        "Trapbar deadlift",
+        "Trap bar deadlifts",
+        "Hex bar deadlift",
+        "Hexbar deadlift",
+        "Hex bar deadlifts"
+      ],
+      "catalogSourceUrl": "https://www.youtube.com/watch?v=FYx76NSijfU"
+    },
+    {
+      "key": "ex:smith-machine-hip-thrust",
+      "label": "Smith machine hip thrust",
+      "aliases": [
+        "Smith machine hip thrusts",
+        "Hip thrust Smith machine",
+        "Smith hip thrust"
+      ],
+      "catalogSourceUrl": "https://www.youtube.com/watch?v=BakGsAociA4"
+    },
+    {
+      "key": "ex:dumbbell-walking-lunge",
+      "label": "Dumbbell walking lunge",
+      "aliases": [
+        "Dumbbell walking lunges",
+        "Walking lunge dumbbells",
+        "Walking lunges dumbbell"
+      ],
+      "catalogSourceUrl": "https://www.youtube.com/watch?v=8fZxWTiIJWo"
+    },
+    {
+      "key": "ex:cable-glute-kickback",
+      "label": "Cable glute kickback",
+      "aliases": [
+        "Cable glute kickbacks",
+        "Glute kickback cable",
+        "Cable kickback glutes",
+        "Glute kickback kabel"
+      ],
+      "catalogSourceUrl": "https://www.puregym.com/exercises/glutes/glute-kickbacks/cable-kickbacks/"
+    },
+    {
+      "key": "ex:nordic-hamstring-curl",
+      "label": "Nordic hamstring curl",
+      "aliases": [
+        "Nordic hamstring curls",
+        "Nordic curl",
+        "Nordic curls",
+        "Russian hamstring curl"
+      ],
+      "catalogSourceUrl": "https://www.youtube.com/watch?v=Wo746janD2E"
+    },
+    {
+      "key": "ex:dumbbell-hip-thrust",
+      "label": "Dumbbell hip thrust",
+      "aliases": [
+        "Dumbbell hip thrusts",
+        "Hip thrust dumbbell",
+        "Hip thrust dumbbells"
+      ],
+      "catalogSourceUrl": "https://www.puregym.com/exercises/glutes/hip-thrusts/dumbbell-hip-thrust/"
+    },
+    {
+      "key": "ex:bodyweight-hip-thrust",
+      "label": "Bodyweight hip thrust",
+      "aliases": [
+        "Bodyweight hip thrusts",
+        "Body weight hip thrust",
+        "Hip thrust lichaamsgewicht"
+      ],
+      "catalogSourceUrl": "https://www.puregym.com/exercises/glutes/hip-thrusts/bodyweight-hip-thrust/"
+    },
+    {
+      "key": "ex:single-leg-bodyweight-hip-thrust",
+      "label": "Single-leg bodyweight hip thrust",
+      "aliases": [
+        "Bodyweight single leg hip thrust",
+        "Single leg hip thrust bodyweight",
+        "Eenbenige hip thrust lichaamsgewicht"
+      ],
+      "catalogSourceUrl": "https://www.puregym.com/exercises/glutes/hip-thrusts/single-leg-hip-thrust/"
+    },
+    {
+      "key": "ex:standing-cable-hip-abduction",
+      "label": "Standing cable hip abduction",
+      "aliases": [
+        "Cable standing hip abduction",
+        "Cable hip abduction",
+        "Standing hip abduction cable",
+        "Heupabductie kabel"
+      ],
+      "catalogSourceUrl": "https://www.puregym.com/exercises/legs/inner-outer-thigh/cable-hip-abduction/"
+    },
+    {
+      "key": "ex:standing-cable-hip-adduction",
+      "label": "Standing cable hip adduction",
+      "aliases": [
+        "Cable standing hip adduction",
+        "Cable hip adduction",
+        "Standing hip adduction cable",
+        "Heupadductie kabel"
+      ],
+      "catalogSourceUrl": "https://www.youtube.com/watch?v=SIQrpq6YnT8"
+    },
+    {
+      "key": "ex:smith-machine-romanian-deadlift",
+      "label": "Smith machine Romanian deadlift",
+      "aliases": [
+        "Smith machine RDL",
+        "Romanian deadlift Smith machine",
+        "Smith Romanian deadlift"
+      ],
+      "catalogSourceUrl": "https://www.youtube.com/watch?v=RkXbWR9dkic"
+    },
+    {
+      "key": "ex:dumbbell-reverse-lunge",
+      "label": "Dumbbell reverse lunge",
+      "aliases": [
+        "Dumbbell reverse lunges",
+        "Reverse lunge dumbbells",
+        "Dumbbell rear lunge",
+        "Achterwaartse lunge dumbbells"
+      ],
+      "catalogSourceUrl": "https://www.youtube.com/watch?v=Q2k3kYbtOcI"
+    },
+    {
+      "key": "ex:barbell-walking-lunge",
+      "label": "Barbell walking lunge",
+      "aliases": [
+        "Barbell walking lunges",
+        "Walking lunge barbell",
+        "Walking lunges barbell"
+      ],
+      "catalogSourceUrl": "https://www.youtube.com/watch?v=bdbJ_aRjw-4"
+    },
+    {
+      "key": "ex:seated-dumbbell-calf-raise",
+      "label": "Seated dumbbell calf raise",
+      "aliases": [
+        "Seated dumbbell calf raises",
+        "Dumbbell seated calf raise",
+        "Seated calf raise dumbbells",
+        "Zittende kuithef dumbbells"
+      ],
+      "catalogSourceUrl": "https://www.puregym.com/exercises/legs/calf-exercises/seated-calf-raises/"
+    },
+    {
+      "key": "ex:cable-lateral-raise",
+      "label": "Cable lateral raise",
+      "aliases": [
+        "Cable lateral raises",
+        "Lateral raise cable",
+        "Lateral raises cable",
+        "Cable side raise",
+        "Cable side raises"
+      ],
+      "catalogSourceUrl": "https://www.puregym.com/exercises/arms-and-shoulders/lateral-raises/cable-lateral-raise/"
+    },
+    {
+      "key": "ex:standing-cable-rear-delt-fly",
+      "label": "Standing cable rear delt fly",
+      "aliases": [
+        "Standing cable rear delt flyes",
+        "Standing cable rear delt flies",
+        "Standing cable reverse fly",
+        "Cable rear delt fly standing"
+      ],
+      "catalogSourceUrl": "https://www.youtube.com/watch?v=AAO_hLyDSb4"
+    },
+    {
+      "key": "ex:smith-machine-bench-press",
+      "label": "Smith machine bench press",
+      "aliases": [
+        "Smith bench press",
+        "Smith machine flat bench press",
+        "Bench press Smith machine",
+        "Smith machine bankdrukken"
+      ],
+      "catalogSourceUrl": "https://www.youtube.com/watch?v=jAFsVr-Hvsg"
+    },
+    {
+      "key": "ex:smith-machine-incline-bench-press",
+      "label": "Smith machine incline bench press",
+      "aliases": [
+        "Incline Smith machine bench press",
+        "Smith incline bench press",
+        "Smith machine incline press",
+        "Incline bench press Smith machine"
+      ],
+      "catalogSourceUrl": "https://www.youtube.com/watch?v=rUU6_IJQ8FE"
+    },
+    {
+      "key": "ex:dumbbell-pullover",
+      "label": "Dumbbell pullover",
+      "aliases": [
+        "Dumbbell pull over",
+        "Dumbbell pullovers",
+        "Pullover dumbbell"
+      ],
+      "catalogSourceUrl": "https://www.youtube.com/watch?v=CSkSflHdC3A"
+    },
+    {
+      "key": "ex:seated-dip-machine",
+      "label": "Seated dip machine",
+      "aliases": [
+        "Seated machine dip",
+        "Seated machine dips",
+        "Machine seated dip",
+        "Seated dip apparaat",
+        "Zittende dip machine"
+      ],
+      "catalogSourceUrl": "https://www.lifefitness.com/en-gb/catalog/strength-training/plate-loaded/life-fitness-seated-dip"
+    },
+    {
+      "key": "ex:assisted-machine-dip",
+      "label": "Assisted machine dip",
+      "aliases": [
+        "Machine assisted dip",
+        "Machine assisted dips",
+        "Assisted dip machine",
+        "Assisted dips machine",
+        "Dip assist machine"
+      ],
+      "catalogSourceUrl": "https://cse.hku.hk/document/exercises-Active-BicepsTriceps.pdf"
+    },
+    {
+      "key": "ex:assisted-machine-pull-up",
+      "label": "Assisted machine pull-up",
+      "aliases": [
+        "Machine assisted pull up",
+        "Machine assisted pull ups",
+        "Assisted pull up machine",
+        "Assisted pull ups machine",
+        "Pull up assist machine"
+      ],
+      "catalogSourceUrl": "https://www.puregym.com/lets-get-started/workout-builder/equipment-how-tos/"
+    },
+    {
+      "key": "ex:straight-arm-cable-pulldown",
+      "label": "Straight-arm cable pulldown",
+      "aliases": [
+        "Straight arm cable pull down",
+        "Straight arm lat pulldown",
+        "Straight arm lat pull down",
+        "Cable straight arm pulldown"
+      ],
+      "catalogSourceUrl": "https://www.puregym.com/exercises/back/lat-exercises/straight-arm-lat-pulldown/"
+    },
+    {
+      "key": "ex:v-bar-lat-pulldown",
+      "label": "V-bar lat pulldown",
+      "aliases": [
+        "V bar lat pull down",
+        "V bar lat pulldowns",
+        "Close grip V bar lat pulldown",
+        "V handle lat pulldown"
+      ],
+      "catalogSourceUrl": "https://www.puregym.com/exercises/back/lat-exercises/close-grip-lat-pulldown/"
+    },
+    {
+      "key": "ex:reverse-grip-cable-lat-pulldown",
+      "label": "Reverse-grip cable lat pulldown",
+      "aliases": [
+        "Reverse grip lat pulldown",
+        "Reverse grip lat pull down",
+        "Underhand cable lat pulldown",
+        "Underhand lat pulldown"
+      ],
+      "catalogSourceUrl": "https://www.puregym.com/exercises/back/lat-exercises/reverse-grip-lat-pulldown/"
+    },
+    {
+      "key": "ex:cable-rope-hammer-curl",
+      "label": "Cable rope hammer curl",
+      "aliases": [
+        "Cable rope hammer curls",
+        "Rope cable hammer curl",
+        "Rope hammer curl cable"
+      ],
+      "catalogSourceUrl": "https://www.youtube.com/watch?v=8y2DQWWX8V4"
+    },
+    {
+      "key": "ex:cable-rope-overhead-triceps-extension",
+      "label": "Cable rope overhead triceps extension",
+      "aliases": [
+        "Cable rope overhead tricep extension",
+        "Overhead cable rope triceps extension",
+        "Overhead triceps extension cable rope",
+        "Cable rope overhead triceps extensions"
+      ],
+      "catalogSourceUrl": "https://www.youtube.com/watch?v=mRozZKkGIfg"
+    },
+    {
+      "key": "ex:dumbbell-shrug",
+      "label": "Dumbbell shrug",
+      "aliases": [
+        "Dumbbell shrugs",
+        "Shrug dumbbell",
+        "Shrugs dumbbell"
+      ],
+      "catalogSourceUrl": "https://www.youtube.com/watch?v=Ni-uEQCZxOo"
+    },
+    {
+      "key": "ex:dumbbell-preacher-curl",
+      "label": "Dumbbell preacher curl",
+      "aliases": [
+        "Dumbbell preacher curls",
+        "Preacher curl dumbbell",
+        "Preacher curls dumbbell"
+      ],
+      "catalogSourceUrl": "https://www.youtube.com/watch?v=zuEfTs3R3yo"
+    },
+    {
+      "key": "ex:decline-barbell-bench-press",
+      "label": "Decline barbell bench press",
+      "aliases": [
+        "Barbell decline bench press",
+        "Decline bench press barbell",
+        "Decline barbell press"
+      ],
+      "catalogSourceUrl": "https://www.youtube.com/watch?v=wZmyndA1bPg"
+    },
+    {
+      "key": "ex:decline-dumbbell-bench-press",
+      "label": "Decline dumbbell bench press",
+      "aliases": [
+        "Decline dumbbell press",
+        "Dumbbell decline bench press",
+        "Decline bench press dumbbells"
+      ],
+      "catalogSourceUrl": "https://www.puregym.com/exercises/chest/bench-press/decline-dumbbell-bench-press/"
+    },
+    {
+      "key": "ex:cable-upright-row",
+      "label": "Cable upright row",
+      "aliases": [
+        "Cable upright rows",
+        "Upright row cable",
+        "Upright rows cable"
+      ],
+      "catalogSourceUrl": "https://www.puregym.com/exercises/arms-and-shoulders/upright-rows/cable-upright-row/"
+    },
+    {
+      "key": "ex:dumbbell-upright-row",
+      "label": "Dumbbell upright row",
+      "aliases": [
+        "Dumbbell upright rows",
+        "Upright row dumbbell",
+        "Upright rows dumbbells"
+      ],
+      "catalogSourceUrl": "https://www.puregym.com/exercises/arms-and-shoulders/upright-rows/dumbbell-upright-row/"
+    },
+    {
+      "key": "ex:cable-front-raise",
+      "label": "Cable front raise",
+      "aliases": [
+        "Cable front raises",
+        "Front raise cable",
+        "Front raises cable"
+      ],
+      "catalogSourceUrl": "https://www.puregym.com/exercises/arms-and-shoulders/front-raises/cable-front-raise/"
+    },
+    {
+      "key": "ex:cable-triceps-kickback",
+      "label": "Cable triceps kickback",
+      "aliases": [
+        "Cable tricep kickback",
+        "Triceps kickback cable",
+        "Cable triceps kickbacks",
+        "Single arm cable triceps kickback"
+      ],
+      "catalogSourceUrl": "https://www.youtube.com/watch?v=ZvF4Oi_6Vtg"
+    },
+    {
+      "key": "ex:chest-supported-t-bar-row",
+      "label": "Chest-supported T-bar row",
+      "aliases": [
+        "Chest supported T bar rows",
+        "Chest supported Tbar row",
+        "T bar row chest supported",
+        "Chest supported T bar machine row"
+      ],
+      "catalogSourceUrl": "https://www.youtube.com/watch?v=CRpez9nWVH0"
+    },
+    {
+      "key": "ex:landmine-t-bar-row",
+      "label": "Landmine T-bar row",
+      "aliases": [
+        "Landmine T bar rows",
+        "T bar landmine row",
+        "Tbar landmine row",
+        "Landmine row"
+      ],
+      "catalogSourceUrl": "https://www.puregym.com/exercises/back/rows/landmine-row/"
+    },
+    {
+      "key": "ex:single-arm-landmine-shoulder-press",
+      "label": "Single-arm landmine shoulder press",
+      "aliases": [
+        "Single arm landmine press",
+        "One arm landmine shoulder press",
+        "Single arm landmine shoulder presses"
+      ],
+      "catalogSourceUrl": "https://www.puregym.com/exercises/arms-and-shoulders/shoulder-press/single-arm-landmine-press/"
+    },
+    {
+      "key": "ex:seated-smith-machine-shoulder-press",
+      "label": "Seated Smith machine shoulder press",
+      "aliases": [
+        "Smith machine seated shoulder press",
+        "Seated Smith shoulder press",
+        "Seated Smith machine overhead press"
+      ],
+      "catalogSourceUrl": "https://www.youtube.com/watch?v=eODNI4s18J4"
+    },
+    {
+      "key": "ex:low-row-machine",
+      "label": "Low row machine",
+      "aliases": [
+        "Machine low row",
+        "Lowrow machine",
+        "Low row apparaat",
+        "Lowrow apparaat",
+        "Low row toestel",
+        "Hammer Strength low row",
+        "Iso-lateral low row"
+      ],
+      "catalogSourceUrl": "https://www.youtube.com/watch?v=9ZZjoyYr-Oo"
+    },
+    {
+      "key": "ex:reverse-fly-machine",
+      "label": "Reverse fly machine",
+      "aliases": [
+        "Machine reverse fly",
+        "Machine reverse flyes",
+        "Machine reverse flies",
+        "Reverse fly apparaat",
+        "Reverse fly toestel",
+        "Reverse pec deck",
+        "Reverse pec-deck machine",
+        "Rear delt fly machine",
+        "Machine rear delt fly",
+        "Rear delt fly apparaat",
+        "Reverse butterfly machine",
+        "Omgekeerde butterfly machine"
+      ],
+      "catalogSourceUrl": "https://www.youtube.com/watch?v=WOi0cWmEMdo"
+    },
+    {
+      "key": "ex:bodyweight-russian-twist",
+      "label": "Bodyweight Russian twist",
+      "aliases": [
+        "Bodyweight Russian twists",
+        "Russische twist zonder gewicht"
+      ],
+      "catalogSourceUrl": "https://www.puregym.com/exercises/abs/russian-twists/"
+    },
+    {
+      "key": "ex:dumbbell-russian-twist",
+      "label": "Dumbbell Russian twist",
+      "aliases": [
+        "Dumbbell Russian twists",
+        "Russian twist dumbbell",
+        "Russian twist met dumbbell"
+      ],
+      "catalogSourceUrl": "https://www.24hourfitness.com/24life/fitness/2019/sweat-set-hiit-magic"
+    },
+    {
+      "key": "ex:kneeling-cable-crunch",
+      "label": "Kneeling cable crunch",
+      "aliases": [
+        "Kneeling cable crunches",
+        "Cable rope crunch",
+        "Cable crunch",
+        "Cable crunches",
+        "Kabelcrunch"
+      ],
+      "catalogSourceUrl": "https://www.youtube.com/watch?v=3qjoXDTuyOE"
+    },
+    {
+      "key": "ex:ab-wheel-rollout",
+      "label": "Ab wheel rollout",
+      "aliases": [
+        "Ab wheel rollouts",
+        "Ab roller rollout",
+        "Kneeling ab wheel rollout",
+        "Ab wheel roll out"
+      ],
+      "catalogSourceUrl": "https://www.puregym.com/exercises/abs/ab-wheel-rollouts/"
+    },
+    {
+      "key": "ex:45-degree-back-extension",
+      "label": "45-degree back extension",
+      "aliases": [
+        "45 degree back extensions",
+        "Back extension 45 degrees",
+        "45 degree hyperextension"
+      ],
+      "catalogSourceUrl": "https://www.youtube.com/watch?v=RaIXjcndM94"
+    },
+    {
+      "key": "ex:back-extension-machine",
+      "label": "Back extension machine",
+      "aliases": [
+        "Machine back extension",
+        "Seated back extension machine",
+        "Rugextensie apparaat"
+      ],
+      "catalogSourceUrl": "https://www.youtube.com/watch?v=4sla2xidkD0"
+    },
+    {
+      "key": "ex:superman",
+      "label": "Superman",
+      "aliases": [
+        "Supermans",
+        "Prone Superman",
+        "Superman exercise"
+      ],
+      "catalogSourceUrl": "https://www.puregym.com/exercises/abs/supermans/"
+    },
+    {
+      "key": "ex:alternating-superman",
+      "label": "Alternating Superman",
+      "aliases": [
+        "Alternating Supermans",
+        "Contralateral Superman",
+        "Opposite arm leg Superman"
+      ],
+      "catalogSourceUrl": "https://mil-sport.ch/en/topics/exercise/7399"
+    },
+    {
+      "key": "ex:sit-up",
+      "label": "Sit-up",
+      "aliases": [
+        "Sit ups",
+        "Situp",
+        "Bodyweight sit up",
+        "Sit ups lichaamsgewicht"
+      ],
+      "catalogSourceUrl": "https://www.puregym.com/exercises/abs/sit-ups/"
+    },
+    {
+      "key": "ex:decline-sit-up",
+      "label": "Decline sit-up",
+      "aliases": [
+        "Decline sit ups",
+        "Decline situp",
+        "Sit up decline bench"
+      ],
+      "catalogSourceUrl": "https://www.puregym.com/exercises/abs/decline-sit-ups/"
+    },
+    {
+      "key": "ex:butterfly-sit-up",
+      "label": "Butterfly sit-up",
+      "aliases": [
+        "Butterfly sit ups",
+        "Butterfly situp"
+      ],
+      "catalogSourceUrl": "https://www.puregym.com/exercises/abs/butterfly-sit-ups/"
+    },
+    {
+      "key": "ex:v-up",
+      "label": "V-up",
+      "aliases": [
+        "V ups",
+        "V sit up",
+        "V sit ups"
+      ],
+      "catalogSourceUrl": "https://www.puregym.com/exercises/abs/v-sit-ups/"
+    },
+    {
+      "key": "ex:tuck-up",
+      "label": "Tuck-up",
+      "aliases": [
+        "Tuck ups",
+        "Tuck sit up",
+        "Bent knee V up"
+      ],
+      "catalogSourceUrl": "https://www.youtube.com/watch?v=vb6DC9_NDcE"
+    },
+    {
+      "key": "ex:lying-leg-raise",
+      "label": "Lying leg raise",
+      "aliases": [
+        "Lying leg raises",
+        "Supine leg raise",
+        "Lying straight leg raise",
+        "Liggende beenheffing"
+      ],
+      "catalogSourceUrl": "https://www.puregym.com/blog/how-to-get-a-flat-tummy-workout-for-beginners/"
+    },
+    {
+      "key": "ex:seated-knee-tuck",
+      "label": "Seated knee tuck",
+      "aliases": [
+        "Seated knee tucks",
+        "Seated leg tuck"
+      ],
+      "catalogSourceUrl": "https://www.youtube.com/watch?v=d_up4yEZhFI"
+    },
+    {
+      "key": "ex:flutter-kick",
+      "label": "Flutter kick",
+      "aliases": [
+        "Flutter kicks",
+        "Supine flutter kick",
+        "Flutter kicks liggend"
+      ],
+      "catalogSourceUrl": "https://www.youtube.com/watch?v=parOR2UTVw0"
+    },
+    {
+      "key": "ex:horizontal-scissor-kick",
+      "label": "Horizontal scissor kick",
+      "aliases": [
+        "Horizontal scissor kicks",
+        "Lying horizontal scissor kick",
+        "Scissor crossover"
+      ],
+      "catalogSourceUrl": "https://www.youtube.com/watch?v=6d8Xm0wnosY"
+    },
+    {
+      "key": "ex:alternating-heel-touch",
+      "label": "Alternating heel touch",
+      "aliases": [
+        "Alternating heel touches",
+        "Heel touches",
+        "Supine heel touch",
+        "Lying heel touch"
+      ],
+      "catalogSourceUrl": "https://www.youtube.com/watch?v=hn3l6tcXxFc"
+    },
+    {
+      "key": "ex:standing-cable-wood-chop",
+      "label": "Standing cable wood chop",
+      "aliases": [
+        "Standing cable woodchopper",
+        "Cable wood chop",
+        "Cable woodchopper",
+        "Standing cable chop"
+      ],
+      "catalogSourceUrl": "https://www.youtube.com/watch?v=iTmMPyDzeYA"
+    },
+    {
+      "key": "ex:standing-cable-pallof-press",
+      "label": "Standing cable Pallof press",
+      "aliases": [
+        "Standing cable Pallof presses",
+        "Cable Pallof press",
+        "Pallof press cable",
+        "Standing anti rotation cable press"
+      ],
+      "catalogSourceUrl": "https://blog.nasm.org/progressive-core-training"
+    },
+    {
+      "key": "ex:plank-shoulder-tap",
+      "label": "Plank shoulder tap",
+      "aliases": [
+        "Plank shoulder taps",
+        "Tall plank shoulder taps",
+        "High plank shoulder taps"
+      ],
+      "catalogSourceUrl": "https://www.youtube.com/watch?v=g3bsSUOn-vo"
+    },
+    {
+      "key": "ex:plank-jack",
+      "label": "Plank jack",
+      "aliases": [
+        "Plank jacks",
+        "Jumping plank jack"
+      ],
+      "catalogSourceUrl": "https://www.youtube.com/watch?v=PR9nHQXCZMo"
+    },
+    {
+      "key": "ex:mountain-climber",
+      "label": "Mountain climber",
+      "aliases": [
+        "Mountain climbers",
+        "Mountainclimber",
+        "Mountainclimbers"
+      ],
+      "catalogSourceUrl": "https://www.puregym.com/exercises/full-body/mountain-climbers/"
+    },
+    {
+      "key": "ex:burpee",
+      "label": "Burpee",
+      "aliases": [
+        "Burpees",
+        "Standard burpee"
+      ],
+      "catalogSourceUrl": "https://www.puregym.com/exercises/full-body/burpees/"
+    },
+    {
+      "key": "ex:jumping-jack",
+      "label": "Jumping jack",
+      "aliases": [
+        "Jumping jacks"
+      ],
+      "catalogSourceUrl": "https://www.nasm.org/resource-center/exercise-library/jumping-jacks"
+    }
+  ],
+  "addedAliases": [
+    {
+      "key": "ex:lat-pulldown",
+      "exercise": "Lat pulldown",
+      "aliases": [
+        "Lat pull down machine",
+        "Lat pulldown machine",
+        "Latpulldown machine",
+        "Lat pull down apparaat",
+        "Lat pulldown apparaat"
+      ],
+      "reason": "Machinebenaming voor de bestaande lat-pulldownreferentie; geen wijziging aan ranglijstkoppelingen.",
+      "sourceUrl": "https://www.puregym.com/exercises/back/lat-exercises/lat-pulldown/"
+    },
+    {
+      "key": "ex:ez-bar-biceps-curl",
+      "exercise": "EZ-bar biceps curl",
+      "aliases": [
+        "Z bar bicep curl",
+        "Z bar biceps curl",
+        "Z bar curl",
+        "Z bar curls",
+        "Z bar bicep curls",
+        "Z bar biceps curls",
+        "Bicep curl Z bar",
+        "Zbar bicep curl",
+        "Zbar biceps curl",
+        "EZbar bicep curl",
+        "Biceps curl Z bar"
+      ],
+      "reason": "Z-bar verwijst hier naar de gebogen EZ-curlstang; geen rechte barbell of machine.",
+      "sourceUrl": "https://www.titaniumstrength.com/titanium-strength-pro-olimpic-ez-curl-bar-collars.html"
+    }
+  ]
+}

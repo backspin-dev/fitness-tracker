@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import {
   EXERCISE_CATALOG, normalizeExerciseName, detectExercise, resolveRankingExercise, suggestExercises,
 } from '../exercise-catalog.js';
@@ -33,7 +34,7 @@ test('equipment, position and exercise variants never merge through generic stri
   assert.notEqual(key('Shoulder press machine'), key('Dumbbell shoulder press'));
   assert.notEqual(key('Triceps pushdown bar'), key('Triceps pushdown rope'));
   assert.notEqual(key('Seated leg curl'), key('Lying leg curl'));
-  assert.equal(detectExercise('Smith bench press'), null);
+  assert.equal(detectExercise('Smith bench press').key, 'ex:smith-machine-bench-press');
   assert.notEqual(key('Smith bench press'), key('Bench press'));
 });
 
@@ -111,7 +112,7 @@ test('suggestions search labels and aliases locally, stay bounded and do not cha
 
 
 test('the researched catalog covers practical equipment and squat variations while retaining free names', () => {
-  assert.equal(EXERCISE_CATALOG.length, 150);
+  assert.ok(EXERCISE_CATALOG.length >= 150);
   assert.equal(new Set(EXERCISE_CATALOG.map(item => item.key)).size, EXERCISE_CATALOG.length);
   const squatSuggestions = suggestExercises('squat');
   assert.equal(squatSuggestions.length, 8);
@@ -134,4 +135,43 @@ test('the researched catalog covers practical equipment and squat variations whi
   assert.notEqual(key('Leg press calf raise'), key('Standing calf raise machine'));
   assert.notEqual(key('Dumbbell hammer curl'), key('Cable biceps curl'));
   assert.equal(key('Mijn volledig eigen oefening'), 'custom:mijn volledig eigen oefening');
+});
+
+test('search handles common spelling mistakes and row terminology without changing exact identity matching',()=>{
+ for(const query of ['dumbel row','dumbell row','dumbbell rows','bent over row','dumbellrow','bentoverrow']) {
+  const matches=suggestExercises(query);
+  assert.ok(matches.some(item=>item.key==='ex:dumbbell-row'),query);
+  assert.ok(matches.every(item=>/row/iu.test(item.label)),query);
+  assert.equal(matches.some(item=>/squat/iu.test(item.label)),false,query);
+ }
+ assert.ok(suggestExercises('bent over row').some(item=>item.key==='ex:barbell-row'));
+ assert.ok(suggestExercises('benhc press').some(item=>item.key==='ex:bench-press'));
+ assert.ok(suggestExercises('squaat').every(item=>/squat/iu.test(item.label)));
+ assert.equal(detectExercise('Dumbel row'),null);
+ assert.equal(detectExercise('Bent over row'),null);
+ assert.deepEqual(suggestExercises('dumbell row squat'),[]);
+ assert.deepEqual(suggestExercises('Geen bestaande oefening xyz'),[]);
+});
+
+test('correctly spelled movement terms never fuzzy-match their opposite',()=>{
+ const adduction=suggestExercises('hip adduction');
+ assert.ok(adduction.length>0);
+ assert.ok(adduction.every(item=>!/abduction/iu.test(item.label)));
+ const abduction=suggestExercises('hip abduction');
+ assert.ok(abduction.length>0);
+ assert.ok(abduction.every(item=>!/\badduction\b/iu.test(item.label)));
+ assert.ok(suggestExercises('hip adductoin').some(item=>/adduction/iu.test(item.label)));
+ assert.ok(suggestExercises('decline bench').every(item=>!/incline/iu.test(item.label)));
+});
+
+test('catalog additions have matching documented primary sources and known stable keys',async()=>{
+ const sources=JSON.parse(await readFile(new URL('../catalog-sources.json',import.meta.url),'utf8'));
+ assert.equal(sources.catalogCount,EXERCISE_CATALOG.length);
+ assert.equal(sources.baselineCount+sources.additions.length,EXERCISE_CATALOG.length);
+ assert.equal(new Set(sources.additions.map(row=>row.key)).size,sources.additions.length);
+ for(const row of sources.additions) {
+  const exercise=EXERCISE_CATALOG.find(item=>item.key===row.key);
+  assert.deepEqual(exercise,{key:row.key,label:row.label,aliases:row.aliases});
+  assert.equal(new URL(row.catalogSourceUrl).protocol,'https:');
+ }
 });

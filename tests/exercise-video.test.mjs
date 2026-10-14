@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { EXERCISE_CATALOG } from '../exercise-catalog.js';
 import { EXERCISE_VIDEOS, getExerciseVideo } from '../exercise-videos.js';
+import { resolveRankingExercise } from '../exercise-catalog.js';
 import { createExerciseVideo, stopExerciseVideos } from '../exercise-video-ui.js';
 
 class Element {
@@ -10,6 +11,7 @@ class Element {
   append(...children) { this.children.push(...children); }
   replaceChildren(...children) { this.children=children; }
   addEventListener(type,handler) { this.events.set(type,handler); }
+  setAttribute(key,value) { this[key]=value; }
   toggle(open) { this.open=open;this.events.get('toggle')(); }
   querySelector(selector) { return this.children.find(child=>'.'+child.className===selector); }
 }
@@ -29,7 +31,9 @@ const fixture=()=>({document,findVideo:()=>example,isOnline:()=>true});
 
 test('collapsed exercise reference creates no frame or external source link',()=>{
  const details=createExerciseVideo({name:'Squat'},fixture());
- assert.equal(details.open,false);assert.equal(details.children[0].textContent,'Uitlegvideo');
+ assert.equal(details.open,false);assert.equal(details.children[0].children[1].textContent,'Uitlegvideo van oefening');
+ assert.equal(details.children[0].children[0].className,'exercise-video-icon');
+ assert.equal(details.children[0].children[0]['aria-hidden'],'true');
  assert.deepEqual(details.children[1].children,[]);
  assert.equal(createExerciseVideo({name:'Onbekend'},{document,findVideo:()=>null}),null);
 });
@@ -84,4 +88,36 @@ test('every catalog reference matches its documented source, with no undocumente
   assert.ok(Number.isInteger(row.durationSeconds) && row.durationSeconds>0 && row.durationSeconds<=180,row.key);
  }
  for(const row of sources.unmatched) assert.equal(EXERCISE_VIDEOS[row.key],undefined,row.key);
+});
+
+test('every documented catalog name and spelling variant uses its own reference when available',()=>{
+ for(const exercise of EXERCISE_CATALOG) for(const name of [exercise.label,...exercise.aliases]) {
+  const key=EXERCISE_VIDEOS[exercise.key] ? exercise.key : undefined;
+  assert.equal(getExerciseVideo({name})?.key,key,name);
+  assert.equal(getExerciseVideo({name:`  ${name.toUpperCase()}!!  `})?.key,key,name);
+ }
+});
+
+test('researched new catalog exercises have their own references while preserving entered names',()=>{
+ const examples={
+  'Lat pull down machine':'ex:lat-pulldown',
+  'Z bar bicep curl':'ex:ez-bar-biceps-curl',
+  'Low row machine':'ex:low-row-machine',
+  'Reverse fly machine':'ex:reverse-fly-machine',
+  'Reverse pec deck':'ex:reverse-fly-machine',
+ };
+ for(const [name,key] of Object.entries(examples)) {
+  const exercise=Object.freeze({name,sets:3,reps:8,weight:20});
+  assert.equal(getExerciseVideo(exercise)?.key,key,name);
+  assert.equal(exercise.name,name);
+  assert.equal(resolveRankingExercise(exercise).key,key,name);
+ }
+ for(const name of ['Low row barbell','Reverse fly dumbbell','Bent over row','Mijn eigen oefening']) {
+  assert.equal(getExerciseVideo({name}),null,name);
+ }
+});
+
+test('search tolerance never assigns videos to custom names or manual ranking overrides',()=>{
+ for(const name of ['Dumbel row','Bent over row','Mijn reverse fly machine','Mijn persoonlijke oefening'])
+  assert.equal(getExerciseVideo({name,rankingKey:'ex:dumbbell-row'}),null,name);
 });

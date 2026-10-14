@@ -9,42 +9,40 @@
 // Bestaande sleutels en aliassen blijven behouden: materiaal wordt nooit generiek weggefilterd.
 // Alleen expliciete aliassen delen een ranglijst. Materiaal en varianten blijven behouden.
 export const EXERCISE_CATALOG = Object.freeze([
-  { key: 'ex:squat', label: 'Squat', aliases: ['Squats'] },
-  { key: 'ex:back-squat', label: 'Back squat', aliases: ['Back squats', 'Barbell back squat', 'Barbell back squats'] },
-  { key: 'ex:front-squat', label: 'Front squat', aliases: ['Front squats', 'Barbell front squat', 'Barbell front squats'] },
-  { key: 'ex:goblet-squat', label: 'Goblet squat', aliases: ['Goblet squats'] },
-  { key: 'ex:leg-press', label: 'Leg press', aliases: ['Legpress', 'Leg press machine', 'Leg press apparaat', 'Benenpers'] },
-  { key: 'ex:leg-extension', label: 'Leg extension', aliases: ['Leg extensions', 'Leg extension machine', 'Leg extension apparaat'] },
-  { key: 'ex:seated-leg-curl', label: 'Seated leg curl', aliases: ['Seated leg curls', 'Seated leg curl machine', 'Zittende leg curl'] },
-  { key: 'ex:lying-leg-curl', label: 'Lying leg curl', aliases: ['Lying leg curls', 'Lying leg curl machine', 'Liggende leg curl'] },
-  { key: 'ex:standing-calf-raise-machine', label: 'Standing calf raise machine', aliases: ['Standing calf raises machine', 'Standing calf raise apparaat'] },
-  { key: 'ex:deadlift', label: 'Deadlift', aliases: ['Deadlifts'] },
-  { key: 'ex:romanian-deadlift', label: 'Romanian deadlift', aliases: ['Romanian deadlifts', 'Roemeense deadlift', 'Roemeense deadlifts', 'RDL'] },
-  { key: 'ex:bench-press', label: 'Bench press', aliases: ['Benchpress', 'Barbell bench press', 'Bench press barbell', 'Bankdrukken', 'Bankdrukken halter'] },
-  { key: 'ex:dumbbell-bench-press', label: 'Dumbbell bench press', aliases: ['Dumbbell benchpress', 'Bench press dumbbell', 'Bench press dumbbells', 'Dumbbell bankdrukken'] },
-  { key: 'ex:bench-press-machine', label: 'Bench press machine', aliases: ['Benchpress machine', 'BenchPressMachine', 'Bench press apparaat', 'Bankdrukken machine'] },
-  { key: 'ex:incline-bench-press', label: 'Incline bench press', aliases: ['Incline bench', 'Incline benchpress', 'Incline barbell bench press', 'Incline bench press barbell'] },
-  { key: 'ex:incline-dumbbell-bench-press', label: 'Incline dumbbell bench press', aliases: ['Incline dumbbell press', 'Incline bench press dumbbell', 'Incline bench press dumbbells'] },
-  { key: 'ex:chest-press-machine', label: 'Chest press machine', aliases: ['Chest press apparaat', 'Chestpress machine', 'Chestpress apparaat'] },
-  { key: 'ex:chest-fly-machine', label: 'Chest fly machine', aliases: ['Fly machine', 'Chest fly apparaat', 'Pec deck', 'Pecdeck', 'Butterfly machine'] },
-  { key: 'ex:dumbbell-chest-fly', label: 'Dumbbell chest fly', aliases: ['Dumbbell chest flys', 'Dumbbell chest flies', 'Dumbbell fly', 'Dumbbell flies', 'Chest fly dumbbell'] },
-  { key: 'ex:shoulder-press-machine', label: 'Shoulder press machine', aliases: ['Shoulder press apparaat', 'Shoulderpress machine', 'Schouderpress machine'] },
-  { key: 'ex:dumbbell-shoulder-press', label: 'Dumbbell shoulder press', aliases: ['Shoulder press dumbbell', 'Shoulder press dumbbells', 'Dumbbell schouderpress'] },
-  { key: 'ex:barbell-overhead-press', label: 'Barbell overhead press', aliases: ['Overhead press barbell', 'Barbell shoulder press', 'Shoulder press barbell'] },
-  { key: 'ex:dumbbell-lateral-raise', label: 'Dumbbell lateral raise', aliases: ['Dumbbell lateral raises', 'Lateral raise dumbbell', 'Lateral raises dumbbell', 'Side raise dumbbell', 'Side raises dumbbell', 'Dumbbell side raise', 'Dumbbell side raises'] },
-  { key: 'ex:lat-pulldown', label: 'Lat pulldown', aliases: ['Lat pull down', 'Lat pulldowns', 'Lat pull downs', 'Latpulldown'] },
-  { key: 'ex:pull-up', label: 'Pull-up', aliases: ['Pull ups', 'Pullups', 'Pullup'] },
-  { key: 'ex:seated-cable-row', label: 'Seated cable row', aliases: ['Seated cable rows', 'Cable seated row', 'Zittende kabelroeien'] },
-  { key: 'ex:barbell-row', label: 'Barbell row', aliases: ['Barbell rows', 'Bent over barbell row', 'Bent over barbell rows', 'Bent over row barbell'] },
-  { key: 'ex:dumbbell-row', label: 'Dumbbell row', aliases: ['Dumbbell rows', 'One arm dumbbell row', 'One arm dumbbell rows', 'Dumbbell roeien'] },
-  { key: 'ex:barbell-biceps-curl', label: 'Barbell biceps curl', aliases: ['Barbell biceps curls', 'Barbell curl', 'Barbell curls', 'Bicep curl barbell'] },
-  { key: 'ex:dumbbell-biceps-curl', label: 'Dumbbell biceps curl', aliases: ['Dumbbell biceps curls', 'Dumbbell curl', 'Dumbbell curls', 'Bicep curl dumbbell'] },
-  { key: 'ex:triceps-pushdown-bar', label: 'Triceps pushdown bar', aliases: ['Tricep push down bar', 'Triceps push down bar', 'Tricep pushdown bar', 'Triceps pushdown stang', 'Tricep pushdown stang'] },
-  { key: 'ex:triceps-pushdown-rope', label: 'Triceps pushdown rope', aliases: ['Tricep push down rope', 'Triceps push down rope', 'Tricep pushdown rope', 'Triceps pushdown touw', 'Tricep pushdown touw'] },
-  { key: 'ex:skull-crusher', label: 'Skull crusher', aliases: ['Skull crushers', 'Skullcrusher', 'Skullcrushers'] },
-  { key: 'ex:push-up', label: 'Push-up', aliases: ['Push ups', 'Pushup', 'Pushups', 'Opdrukken'] },
-
-  // Aanvullende, bestaande oefeningen uit de bovenstaande primaire bibliotheken.
+  {"key": "ex:squat", "label": "Squat", "aliases": ["Squats"]},
+  {"key": "ex:back-squat", "label": "Back squat", "aliases": ["Back squats", "Barbell back squat", "Barbell back squats"]},
+  {"key": "ex:front-squat", "label": "Front squat", "aliases": ["Front squats", "Barbell front squat", "Barbell front squats"]},
+  {"key": "ex:goblet-squat", "label": "Goblet squat", "aliases": ["Goblet squats"]},
+  {"key": "ex:leg-press", "label": "Leg press", "aliases": ["Legpress", "Leg press machine", "Leg press apparaat", "Benenpers"]},
+  {"key": "ex:leg-extension", "label": "Leg extension", "aliases": ["Leg extensions", "Leg extension machine", "Leg extension apparaat"]},
+  {"key": "ex:seated-leg-curl", "label": "Seated leg curl", "aliases": ["Seated leg curls", "Seated leg curl machine", "Zittende leg curl"]},
+  {"key": "ex:lying-leg-curl", "label": "Lying leg curl", "aliases": ["Lying leg curls", "Lying leg curl machine", "Liggende leg curl"]},
+  {"key": "ex:standing-calf-raise-machine", "label": "Standing calf raise machine", "aliases": ["Standing calf raises machine", "Standing calf raise apparaat"]},
+  {"key": "ex:deadlift", "label": "Deadlift", "aliases": ["Deadlifts"]},
+  {"key": "ex:romanian-deadlift", "label": "Romanian deadlift", "aliases": ["Romanian deadlifts", "Roemeense deadlift", "Roemeense deadlifts", "RDL"]},
+  {"key": "ex:bench-press", "label": "Bench press", "aliases": ["Benchpress", "Barbell bench press", "Bench press barbell", "Bankdrukken", "Bankdrukken halter"]},
+  {"key": "ex:dumbbell-bench-press", "label": "Dumbbell bench press", "aliases": ["Dumbbell benchpress", "Bench press dumbbell", "Bench press dumbbells", "Dumbbell bankdrukken"]},
+  {"key": "ex:bench-press-machine", "label": "Bench press machine", "aliases": ["Benchpress machine", "BenchPressMachine", "Bench press apparaat", "Bankdrukken machine"]},
+  {"key": "ex:incline-bench-press", "label": "Incline bench press", "aliases": ["Incline bench", "Incline benchpress", "Incline barbell bench press", "Incline bench press barbell"]},
+  {"key": "ex:incline-dumbbell-bench-press", "label": "Incline dumbbell bench press", "aliases": ["Incline dumbbell press", "Incline bench press dumbbell", "Incline bench press dumbbells"]},
+  {"key": "ex:chest-press-machine", "label": "Chest press machine", "aliases": ["Chest press apparaat", "Chestpress machine", "Chestpress apparaat"]},
+  {"key": "ex:chest-fly-machine", "label": "Chest fly machine", "aliases": ["Fly machine", "Chest fly apparaat", "Pec deck", "Pecdeck", "Butterfly machine"]},
+  {"key": "ex:dumbbell-chest-fly", "label": "Dumbbell chest fly", "aliases": ["Dumbbell chest flys", "Dumbbell chest flies", "Dumbbell fly", "Dumbbell flies", "Chest fly dumbbell"]},
+  {"key": "ex:shoulder-press-machine", "label": "Shoulder press machine", "aliases": ["Shoulder press apparaat", "Shoulderpress machine", "Schouderpress machine"]},
+  {"key": "ex:dumbbell-shoulder-press", "label": "Dumbbell shoulder press", "aliases": ["Shoulder press dumbbell", "Shoulder press dumbbells", "Dumbbell schouderpress"]},
+  {"key": "ex:barbell-overhead-press", "label": "Barbell overhead press", "aliases": ["Overhead press barbell", "Barbell shoulder press", "Shoulder press barbell"]},
+  {"key": "ex:dumbbell-lateral-raise", "label": "Dumbbell lateral raise", "aliases": ["Dumbbell lateral raises", "Lateral raise dumbbell", "Lateral raises dumbbell", "Side raise dumbbell", "Side raises dumbbell", "Dumbbell side raise", "Dumbbell side raises"]},
+  {"key": "ex:lat-pulldown", "label": "Lat pulldown", "aliases": ["Lat pull down", "Lat pulldowns", "Lat pull downs", "Latpulldown", "Lat pull down machine", "Lat pulldown machine", "Latpulldown machine", "Lat pull down apparaat", "Lat pulldown apparaat"]},
+  {"key": "ex:pull-up", "label": "Pull-up", "aliases": ["Pull ups", "Pullups", "Pullup"]},
+  {"key": "ex:seated-cable-row", "label": "Seated cable row", "aliases": ["Seated cable rows", "Cable seated row", "Zittende kabelroeien"]},
+  {"key": "ex:barbell-row", "label": "Barbell row", "aliases": ["Barbell rows", "Bent over barbell row", "Bent over barbell rows", "Bent over row barbell"]},
+  {"key": "ex:dumbbell-row", "label": "Dumbbell row", "aliases": ["Dumbbell rows", "One arm dumbbell row", "One arm dumbbell rows", "Dumbbell roeien"]},
+  {"key": "ex:barbell-biceps-curl", "label": "Barbell biceps curl", "aliases": ["Barbell biceps curls", "Barbell curl", "Barbell curls", "Bicep curl barbell"]},
+  {"key": "ex:dumbbell-biceps-curl", "label": "Dumbbell biceps curl", "aliases": ["Dumbbell biceps curls", "Dumbbell curl", "Dumbbell curls", "Bicep curl dumbbell"]},
+  {"key": "ex:triceps-pushdown-bar", "label": "Triceps pushdown bar", "aliases": ["Tricep push down bar", "Triceps push down bar", "Tricep pushdown bar", "Triceps pushdown stang", "Tricep pushdown stang"]},
+  {"key": "ex:triceps-pushdown-rope", "label": "Triceps pushdown rope", "aliases": ["Tricep push down rope", "Triceps push down rope", "Tricep pushdown rope", "Triceps pushdown touw", "Tricep pushdown touw"]},
+  {"key": "ex:skull-crusher", "label": "Skull crusher", "aliases": ["Skull crushers", "Skullcrusher", "Skullcrushers"]},
+  {"key": "ex:push-up", "label": "Push-up", "aliases": ["Push ups", "Pushup", "Pushups", "Opdrukken"]},
   {"key": "ex:bodyweight-squat", "label": "Bodyweight squat", "aliases": ["Body weight squat", "Bodyweight squats", "Air squat", "Air squats", "Squat lichaamsgewicht"]},
   {"key": "ex:prisoner-squat", "label": "Prisoner squat", "aliases": ["Prisoner squats"]},
   {"key": "ex:jump-squat", "label": "Jump squat", "aliases": ["Jump squats", "Squat jump", "Squat jumps"]},
@@ -119,7 +117,7 @@ export const EXERCISE_CATALOG = Object.freeze([
   {"key": "ex:incline-dumbbell-curl", "label": "Incline dumbbell curl", "aliases": ["Incline dumbbell curls", "Incline curl dumbbell"]},
   {"key": "ex:preacher-curl", "label": "Preacher curl", "aliases": ["Preacher curls"]},
   {"key": "ex:cable-biceps-curl", "label": "Cable biceps curl", "aliases": ["Cable bicep curl", "Cable biceps curls", "Cable curl", "Cable curls"]},
-  {"key": "ex:ez-bar-biceps-curl", "label": "EZ-bar biceps curl", "aliases": ["EZ bar curl", "EZ curl", "EZ bar bicep curl"]},
+  {"key": "ex:ez-bar-biceps-curl", "label": "EZ-bar biceps curl", "aliases": ["EZ bar curl", "EZ curl", "EZ bar bicep curl", "Z bar bicep curl", "Z bar biceps curl", "Z bar curl", "Z bar curls", "Z bar bicep curls", "Z bar biceps curls", "Bicep curl Z bar", "Zbar bicep curl", "Zbar biceps curl", "EZbar bicep curl", "Biceps curl Z bar"]},
   {"key": "ex:wide-grip-ez-bar-curl", "label": "Wide-grip EZ-bar curl", "aliases": ["EZ curl wide grip", "Wide grip EZ curl"]},
   {"key": "ex:close-grip-ez-bar-curl", "label": "Close-grip EZ-bar curl", "aliases": ["EZ curl narrow grip", "Narrow grip EZ bar curl", "Close grip EZ curl"]},
   {"key": "ex:barbell-reverse-curl", "label": "Barbell reverse curl", "aliases": ["Reverse barbell curl", "Reverse bicep curl barbell"]},
@@ -161,6 +159,83 @@ export const EXERCISE_CATALOG = Object.freeze([
   {"key": "ex:plyometric-push-up", "label": "Plyometric push-up", "aliases": ["Plyometric push ups", "Clapping push up", "Clap push up"]},
   {"key": "ex:bench-dip", "label": "Bench dip", "aliases": ["Bench dips"]},
   {"key": "ex:parallel-bar-dip", "label": "Parallel-bar dip", "aliases": ["Parallel bar dips"]},
+  {"key": "ex:smith-machine-squat", "label": "Smith machine squat", "aliases": ["Smith machine squats", "Smith squat", "Squat Smith machine", "Squat Smith apparaat"]},
+  {"key": "ex:hack-squat-machine", "label": "Hack squat machine", "aliases": ["Machine hack squat", "Machine hack squats", "Hack squat apparaat", "Hack squat toestel"]},
+  {"key": "ex:hip-thrust-machine", "label": "Hip thrust machine", "aliases": ["Machine hip thrust", "Machine hip thrusts", "Glute drive machine", "Machine glute drive", "Hip thrust apparaat", "Hip thrust toestel"]},
+  {"key": "ex:hip-abduction-machine", "label": "Hip abduction machine", "aliases": ["Seated hip abduction machine", "Hip abductor machine", "Abductor machine", "Heupabductie machine", "Heupabductie apparaat"]},
+  {"key": "ex:hip-adduction-machine", "label": "Hip adduction machine", "aliases": ["Seated hip adduction machine", "Hip adductor machine", "Adductor machine", "Heupadductie machine", "Heupadductie apparaat"]},
+  {"key": "ex:seated-calf-raise-machine", "label": "Seated calf raise machine", "aliases": ["Machine seated calf raise", "Seated calf raises machine", "Seated calf raise apparaat", "Zittende kuithef machine"]},
+  {"key": "ex:smith-machine-calf-raise", "label": "Smith machine calf raise", "aliases": ["Smith machine calf raises", "Smith calf raise", "Calf raise Smith machine", "Kuithef Smith machine"]},
+  {"key": "ex:standing-dumbbell-calf-raise", "label": "Standing dumbbell calf raise", "aliases": ["Standing dumbbell calf raises", "Dumbbell standing calf raise", "Standing calf raise dumbbells", "Staande kuithef dumbbells"]},
+  {"key": "ex:bodyweight-standing-calf-raise", "label": "Bodyweight standing calf raise", "aliases": ["Standing bodyweight calf raise", "Bodyweight standing calf raises", "Standing calf raise bodyweight", "Staande kuithef lichaamsgewicht"]},
+  {"key": "ex:sumo-deadlift", "label": "Sumo deadlift", "aliases": ["Sumo deadlifts", "Barbell sumo deadlift", "Barbell sumo deadlifts", "Sumo deadlift barbell"]},
+  {"key": "ex:dumbbell-deadlift", "label": "Dumbbell deadlift", "aliases": ["Dumbbell deadlifts", "Deadlift dumbbells", "Deadlift dumbbell"]},
+  {"key": "ex:trap-bar-deadlift", "label": "Trap bar deadlift", "aliases": ["Trapbar deadlift", "Trap bar deadlifts", "Hex bar deadlift", "Hexbar deadlift", "Hex bar deadlifts"]},
+  {"key": "ex:smith-machine-hip-thrust", "label": "Smith machine hip thrust", "aliases": ["Smith machine hip thrusts", "Hip thrust Smith machine", "Smith hip thrust"]},
+  {"key": "ex:dumbbell-walking-lunge", "label": "Dumbbell walking lunge", "aliases": ["Dumbbell walking lunges", "Walking lunge dumbbells", "Walking lunges dumbbell"]},
+  {"key": "ex:cable-glute-kickback", "label": "Cable glute kickback", "aliases": ["Cable glute kickbacks", "Glute kickback cable", "Cable kickback glutes", "Glute kickback kabel"]},
+  {"key": "ex:nordic-hamstring-curl", "label": "Nordic hamstring curl", "aliases": ["Nordic hamstring curls", "Nordic curl", "Nordic curls", "Russian hamstring curl"]},
+  {"key": "ex:dumbbell-hip-thrust", "label": "Dumbbell hip thrust", "aliases": ["Dumbbell hip thrusts", "Hip thrust dumbbell", "Hip thrust dumbbells"]},
+  {"key": "ex:bodyweight-hip-thrust", "label": "Bodyweight hip thrust", "aliases": ["Bodyweight hip thrusts", "Body weight hip thrust", "Hip thrust lichaamsgewicht"]},
+  {"key": "ex:single-leg-bodyweight-hip-thrust", "label": "Single-leg bodyweight hip thrust", "aliases": ["Bodyweight single leg hip thrust", "Single leg hip thrust bodyweight", "Eenbenige hip thrust lichaamsgewicht"]},
+  {"key": "ex:standing-cable-hip-abduction", "label": "Standing cable hip abduction", "aliases": ["Cable standing hip abduction", "Cable hip abduction", "Standing hip abduction cable", "Heupabductie kabel"]},
+  {"key": "ex:standing-cable-hip-adduction", "label": "Standing cable hip adduction", "aliases": ["Cable standing hip adduction", "Cable hip adduction", "Standing hip adduction cable", "Heupadductie kabel"]},
+  {"key": "ex:smith-machine-romanian-deadlift", "label": "Smith machine Romanian deadlift", "aliases": ["Smith machine RDL", "Romanian deadlift Smith machine", "Smith Romanian deadlift"]},
+  {"key": "ex:dumbbell-reverse-lunge", "label": "Dumbbell reverse lunge", "aliases": ["Dumbbell reverse lunges", "Reverse lunge dumbbells", "Dumbbell rear lunge", "Achterwaartse lunge dumbbells"]},
+  {"key": "ex:barbell-walking-lunge", "label": "Barbell walking lunge", "aliases": ["Barbell walking lunges", "Walking lunge barbell", "Walking lunges barbell"]},
+  {"key": "ex:seated-dumbbell-calf-raise", "label": "Seated dumbbell calf raise", "aliases": ["Seated dumbbell calf raises", "Dumbbell seated calf raise", "Seated calf raise dumbbells", "Zittende kuithef dumbbells"]},
+  {"key": "ex:cable-lateral-raise", "label": "Cable lateral raise", "aliases": ["Cable lateral raises", "Lateral raise cable", "Lateral raises cable", "Cable side raise", "Cable side raises"]},
+  {"key": "ex:standing-cable-rear-delt-fly", "label": "Standing cable rear delt fly", "aliases": ["Standing cable rear delt flyes", "Standing cable rear delt flies", "Standing cable reverse fly", "Cable rear delt fly standing"]},
+  {"key": "ex:smith-machine-bench-press", "label": "Smith machine bench press", "aliases": ["Smith bench press", "Smith machine flat bench press", "Bench press Smith machine", "Smith machine bankdrukken"]},
+  {"key": "ex:smith-machine-incline-bench-press", "label": "Smith machine incline bench press", "aliases": ["Incline Smith machine bench press", "Smith incline bench press", "Smith machine incline press", "Incline bench press Smith machine"]},
+  {"key": "ex:dumbbell-pullover", "label": "Dumbbell pullover", "aliases": ["Dumbbell pull over", "Dumbbell pullovers", "Pullover dumbbell"]},
+  {"key": "ex:seated-dip-machine", "label": "Seated dip machine", "aliases": ["Seated machine dip", "Seated machine dips", "Machine seated dip", "Seated dip apparaat", "Zittende dip machine"]},
+  {"key": "ex:assisted-machine-dip", "label": "Assisted machine dip", "aliases": ["Machine assisted dip", "Machine assisted dips", "Assisted dip machine", "Assisted dips machine", "Dip assist machine"]},
+  {"key": "ex:assisted-machine-pull-up", "label": "Assisted machine pull-up", "aliases": ["Machine assisted pull up", "Machine assisted pull ups", "Assisted pull up machine", "Assisted pull ups machine", "Pull up assist machine"]},
+  {"key": "ex:straight-arm-cable-pulldown", "label": "Straight-arm cable pulldown", "aliases": ["Straight arm cable pull down", "Straight arm lat pulldown", "Straight arm lat pull down", "Cable straight arm pulldown"]},
+  {"key": "ex:v-bar-lat-pulldown", "label": "V-bar lat pulldown", "aliases": ["V bar lat pull down", "V bar lat pulldowns", "Close grip V bar lat pulldown", "V handle lat pulldown"]},
+  {"key": "ex:reverse-grip-cable-lat-pulldown", "label": "Reverse-grip cable lat pulldown", "aliases": ["Reverse grip lat pulldown", "Reverse grip lat pull down", "Underhand cable lat pulldown", "Underhand lat pulldown"]},
+  {"key": "ex:cable-rope-hammer-curl", "label": "Cable rope hammer curl", "aliases": ["Cable rope hammer curls", "Rope cable hammer curl", "Rope hammer curl cable"]},
+  {"key": "ex:cable-rope-overhead-triceps-extension", "label": "Cable rope overhead triceps extension", "aliases": ["Cable rope overhead tricep extension", "Overhead cable rope triceps extension", "Overhead triceps extension cable rope", "Cable rope overhead triceps extensions"]},
+  {"key": "ex:dumbbell-shrug", "label": "Dumbbell shrug", "aliases": ["Dumbbell shrugs", "Shrug dumbbell", "Shrugs dumbbell"]},
+  {"key": "ex:dumbbell-preacher-curl", "label": "Dumbbell preacher curl", "aliases": ["Dumbbell preacher curls", "Preacher curl dumbbell", "Preacher curls dumbbell"]},
+  {"key": "ex:decline-barbell-bench-press", "label": "Decline barbell bench press", "aliases": ["Barbell decline bench press", "Decline bench press barbell", "Decline barbell press"]},
+  {"key": "ex:decline-dumbbell-bench-press", "label": "Decline dumbbell bench press", "aliases": ["Decline dumbbell press", "Dumbbell decline bench press", "Decline bench press dumbbells"]},
+  {"key": "ex:cable-upright-row", "label": "Cable upright row", "aliases": ["Cable upright rows", "Upright row cable", "Upright rows cable"]},
+  {"key": "ex:dumbbell-upright-row", "label": "Dumbbell upright row", "aliases": ["Dumbbell upright rows", "Upright row dumbbell", "Upright rows dumbbells"]},
+  {"key": "ex:cable-front-raise", "label": "Cable front raise", "aliases": ["Cable front raises", "Front raise cable", "Front raises cable"]},
+  {"key": "ex:cable-triceps-kickback", "label": "Cable triceps kickback", "aliases": ["Cable tricep kickback", "Triceps kickback cable", "Cable triceps kickbacks", "Single arm cable triceps kickback"]},
+  {"key": "ex:chest-supported-t-bar-row", "label": "Chest-supported T-bar row", "aliases": ["Chest supported T bar rows", "Chest supported Tbar row", "T bar row chest supported", "Chest supported T bar machine row"]},
+  {"key": "ex:landmine-t-bar-row", "label": "Landmine T-bar row", "aliases": ["Landmine T bar rows", "T bar landmine row", "Tbar landmine row", "Landmine row"]},
+  {"key": "ex:single-arm-landmine-shoulder-press", "label": "Single-arm landmine shoulder press", "aliases": ["Single arm landmine press", "One arm landmine shoulder press", "Single arm landmine shoulder presses"]},
+  {"key": "ex:seated-smith-machine-shoulder-press", "label": "Seated Smith machine shoulder press", "aliases": ["Smith machine seated shoulder press", "Seated Smith shoulder press", "Seated Smith machine overhead press"]},
+  {"key": "ex:low-row-machine", "label": "Low row machine", "aliases": ["Machine low row", "Lowrow machine", "Low row apparaat", "Lowrow apparaat", "Low row toestel", "Hammer Strength low row", "Iso-lateral low row"]},
+  {"key": "ex:reverse-fly-machine", "label": "Reverse fly machine", "aliases": ["Machine reverse fly", "Machine reverse flyes", "Machine reverse flies", "Reverse fly apparaat", "Reverse fly toestel", "Reverse pec deck", "Reverse pec-deck machine", "Rear delt fly machine", "Machine rear delt fly", "Rear delt fly apparaat", "Reverse butterfly machine", "Omgekeerde butterfly machine"]},
+  {"key": "ex:bodyweight-russian-twist", "label": "Bodyweight Russian twist", "aliases": ["Bodyweight Russian twists", "Russische twist zonder gewicht"]},
+  {"key": "ex:dumbbell-russian-twist", "label": "Dumbbell Russian twist", "aliases": ["Dumbbell Russian twists", "Russian twist dumbbell", "Russian twist met dumbbell"]},
+  {"key": "ex:kneeling-cable-crunch", "label": "Kneeling cable crunch", "aliases": ["Kneeling cable crunches", "Cable rope crunch", "Cable crunch", "Cable crunches", "Kabelcrunch"]},
+  {"key": "ex:ab-wheel-rollout", "label": "Ab wheel rollout", "aliases": ["Ab wheel rollouts", "Ab roller rollout", "Kneeling ab wheel rollout", "Ab wheel roll out"]},
+  {"key": "ex:45-degree-back-extension", "label": "45-degree back extension", "aliases": ["45 degree back extensions", "Back extension 45 degrees", "45 degree hyperextension"]},
+  {"key": "ex:back-extension-machine", "label": "Back extension machine", "aliases": ["Machine back extension", "Seated back extension machine", "Rugextensie apparaat"]},
+  {"key": "ex:superman", "label": "Superman", "aliases": ["Supermans", "Prone Superman", "Superman exercise"]},
+  {"key": "ex:alternating-superman", "label": "Alternating Superman", "aliases": ["Alternating Supermans", "Contralateral Superman", "Opposite arm leg Superman"]},
+  {"key": "ex:sit-up", "label": "Sit-up", "aliases": ["Sit ups", "Situp", "Bodyweight sit up", "Sit ups lichaamsgewicht"]},
+  {"key": "ex:decline-sit-up", "label": "Decline sit-up", "aliases": ["Decline sit ups", "Decline situp", "Sit up decline bench"]},
+  {"key": "ex:butterfly-sit-up", "label": "Butterfly sit-up", "aliases": ["Butterfly sit ups", "Butterfly situp"]},
+  {"key": "ex:v-up", "label": "V-up", "aliases": ["V ups", "V sit up", "V sit ups"]},
+  {"key": "ex:tuck-up", "label": "Tuck-up", "aliases": ["Tuck ups", "Tuck sit up", "Bent knee V up"]},
+  {"key": "ex:lying-leg-raise", "label": "Lying leg raise", "aliases": ["Lying leg raises", "Supine leg raise", "Lying straight leg raise", "Liggende beenheffing"]},
+  {"key": "ex:seated-knee-tuck", "label": "Seated knee tuck", "aliases": ["Seated knee tucks", "Seated leg tuck"]},
+  {"key": "ex:flutter-kick", "label": "Flutter kick", "aliases": ["Flutter kicks", "Supine flutter kick", "Flutter kicks liggend"]},
+  {"key": "ex:horizontal-scissor-kick", "label": "Horizontal scissor kick", "aliases": ["Horizontal scissor kicks", "Lying horizontal scissor kick", "Scissor crossover"]},
+  {"key": "ex:alternating-heel-touch", "label": "Alternating heel touch", "aliases": ["Alternating heel touches", "Heel touches", "Supine heel touch", "Lying heel touch"]},
+  {"key": "ex:standing-cable-wood-chop", "label": "Standing cable wood chop", "aliases": ["Standing cable woodchopper", "Cable wood chop", "Cable woodchopper", "Standing cable chop"]},
+  {"key": "ex:standing-cable-pallof-press", "label": "Standing cable Pallof press", "aliases": ["Standing cable Pallof presses", "Cable Pallof press", "Pallof press cable", "Standing anti rotation cable press"]},
+  {"key": "ex:plank-shoulder-tap", "label": "Plank shoulder tap", "aliases": ["Plank shoulder taps", "Tall plank shoulder taps", "High plank shoulder taps"]},
+  {"key": "ex:plank-jack", "label": "Plank jack", "aliases": ["Plank jacks", "Jumping plank jack"]},
+  {"key": "ex:mountain-climber", "label": "Mountain climber", "aliases": ["Mountain climbers", "Mountainclimber", "Mountainclimbers"]},
+  {"key": "ex:burpee", "label": "Burpee", "aliases": ["Burpees", "Standard burpee"]},
+  {"key": "ex:jumping-jack", "label": "Jumping jack", "aliases": ["Jumping jacks"]},
 ].map(item => Object.freeze({ ...item, aliases: Object.freeze(item.aliases) })));
 
 export function normalizeExerciseName(name) {
@@ -199,10 +274,58 @@ export function resolveRankingExercise(exercise) {
   return { key, label };
 }
 
-export function suggestExercises(query) {
-  const normalized = normalizeExerciseName(query);
-  if (!normalized) return [];
-  const words = normalized.split(/\s+/u);
-  return EXERCISE_CATALOG.filter(item => [item.label, ...item.aliases]
-    .some(alias => words.every(word => normalizeExerciseName(alias).includes(word)))).slice(0, 8);
+// Zoekhulp corrigeert alleen suggesties, nooit een opgeslagen naam of ranglijst.
+const SEARCH_WORDS = Object.freeze({
+  dumbel: 'dumbbell', dumbels: 'dumbbell', dumbell: 'dumbbell', dumbells: 'dumbbell', dumbbells: 'dumbbell',
+  dumbelrow: 'dumbbell row', dumbellrow: 'dumbbell row', dumbbellrow: 'dumbbell row', bentover: 'bent over', bentoverrow: 'bent over row',
+  barbel: 'barbell', barbells: 'barbell', kettlebell: 'kettlebell', kettlebel: 'kettlebell', kettlebells: 'kettlebell',
+  biceps: 'bicep', triceps: 'tricep', rows: 'row', squats: 'squat', curls: 'curl', raises: 'raise',
+  flys: 'fly', flyes: 'fly', flies: 'fly', lunges: 'lunge', presses: 'press', extensions: 'extension',
+  one: 'single', apparaat: 'machine', toestel: 'machine', cable: 'cable', kabel: 'cable',
+});
+const SEARCH_HINTS = Object.freeze({ 'ex:dumbbell-row': ['Bent over dumbbell row'] });
+
+export function normalizeExerciseSearch(value) {
+  return normalizeExerciseName(value).replace(/\bpull down\b/gu, 'pulldown').replace(/\bpush down\b/gu, 'pushdown')
+    .split(/\s+/u).map(word => SEARCH_WORDS[word] ?? word).join(' ');
+}
+
+// Een correct geschreven vakterm wordt nooit als typefout in een andere term gezien
+// (zoals adduction/abduction: verschillende bewegingen).
+const SEARCH_VOCABULARY = new Set(EXERCISE_CATALOG.flatMap(item =>
+  [item.label, ...item.aliases].flatMap(name => normalizeExerciseSearch(name).split(/\s+/u))));
+
+function oneTypingError(a, b) {
+  if (a.length < 5 || b.length < 5 || Math.abs(a.length - b.length) > 1) return false;
+  if (a.length === b.length) {
+    const different = [...a].map((letter, index) => letter === b[index] ? -1 : index).filter(index => index >= 0);
+    return different.length === 1 || different.length === 2 && different[1] === different[0] + 1 &&
+      a[different[0]] === b[different[1]] && a[different[1]] === b[different[0]];
+  }
+  const shorter = a.length < b.length ? a : b, longer = a.length < b.length ? b : a;
+  let i = 0; while (i < shorter.length && shorter[i] === longer[i]) i++;
+  return shorter.slice(i) === longer.slice(i + 1);
+}
+
+export function exerciseSearchScore(query, name) {
+  const needle = normalizeExerciseSearch(query), candidate = normalizeExerciseSearch(name);
+  if (!needle || !candidate) return Infinity;
+  const terms = candidate.split(/\s+/u);
+  let errors = 0;
+  for (const word of needle.split(/\s+/u)) {
+    if (terms.some(term => term.startsWith(word))) continue;
+    if (!SEARCH_VOCABULARY.has(word) && terms.some(term => oneTypingError(word, term))) errors++;
+    else return Infinity;
+  }
+  if (errors) return 100 + errors * 10;
+  return candidate === needle ? 0 : candidate.startsWith(needle) ? 10 : 20;
+}
+
+export function suggestExercises(query, limit = 8) {
+  if (!normalizeExerciseName(query)) return [];
+  return EXERCISE_CATALOG.map((item, index) => ({ item, index, score: Math.min(
+    ...[item.label, ...item.aliases].map(name => exerciseSearchScore(query, name)),
+    ...(SEARCH_HINTS[item.key] ?? []).map(name => exerciseSearchScore(query, name) + 5),
+  ) })).filter(match => Number.isFinite(match.score))
+    .sort((a, b) => a.score - b.score || a.index - b.index).slice(0, limit).map(match => match.item);
 }

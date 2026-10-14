@@ -48,6 +48,19 @@ test('suggestions stay short, put catalog exercises first and identify user-adde
   assert.deepEqual(matchingExerciseSuggestions('', community), []);
 });
 
+test('corrected search stays relevant and public aliases cannot duplicate catalog suggestions',()=>{
+ const community=[
+  {exercise_key:'custom:dumbell row eigen variant',exercise_name:'Dumbell row eigen variant'},
+  {exercise_key:'custom:reverse fly machine',exercise_name:'Reverse fly machine'},
+ ];
+ const rows=matchingExerciseSuggestions('dumbel row',community);
+ assert.ok(rows.some(item=>item.key==='ex:dumbbell-row'));
+ assert.ok(rows.every(item=>/row/iu.test(item.label)));
+ const reverse=matchingExerciseSuggestions('reverse fly machine',community);
+ assert.equal(reverse.filter(item=>item.label==='Reverse fly machine').length,1);
+ assert.equal(reverse.find(item=>item.label==='Reverse fly machine').community,false);
+});
+
 test('typing shows matching exercises without requiring a choice or intercepting free-name Enter', async () => {
   const { name, panel, list, ui } = fixture();
   assert.equal(panel.hidden, false);
