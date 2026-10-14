@@ -117,7 +117,7 @@ test('set controls respect limits and read-only mode', async () => {
   await read.add.fire('click'); assert.equal(read.changes.length, 0);
 });
 
-function orderFixture() {
+function orderFixture({ editable = true, rerender = false } = {}) {
   const { document } = environment(), list = document.createElement('div');
   let workout = ['a', 'b', 'c', 'd'].map(id => ({ id, name: id.toUpperCase(), weight: 10, reps: 8, sets: 1 }));
   const handles = [], cards = [], inputs = [], moves = [], notices = [], callbacks = new Map();
@@ -126,19 +126,23 @@ function orderFixture() {
     cancelAnimationFrame: id => callbacks.delete(id),
     scrollBy: (x, y) => { window.scrollY += y; },
   };
-  for (const [index, exercise] of workout.entries()) {
-    const card = document.createElement('article'); card.dataset.exerciseId = exercise.id; card.dataset.exerciseName = exercise.name;
-    card.rect = { top: index * 100, height: 90 };
-    const handle = document.createElement('button'); handle.dataset.dragExercise = exercise.id;
-    const input = document.createElement('input'); card.append(handle, input); list.append(card);
-    handles.push(handle); cards.push(card); inputs.push(input);
+  function renderCards() {
+    list.replaceChildren(); handles.length = cards.length = inputs.length = 0;
+    for (const [index, exercise] of workout.entries()) {
+      const card = document.createElement('article'); card.dataset.exerciseId = exercise.id; card.dataset.exerciseName = exercise.name;
+      card.rect = { top: index * 100, height: 90 };
+      const handle = document.createElement('button'); handle.dataset.dragExercise = exercise.id;
+      const input = document.createElement('input'); card.append(handle, input); list.append(card);
+      handles.push(handle); cards.push(card); inputs.push(input);
+    }
   }
-  const ui = setupExerciseOrder({ list, window, canEdit: () => true,
-    onMove: (id, target) => { moves.push([id, target]); workout = reorderWorkout(workout, id, target); },
+  renderCards();
+  const ui = setupExerciseOrder({ list, window, canEdit: () => editable,
+    onMove: (id, target) => { moves.push([id, target]); workout = reorderWorkout(workout, id, target); if (rerender) renderCards(); },
     announce: message => notices.push(message),
   });
   const fire = (type, target, y, props = {}) => list.fire(type, { target, pointerId: 7, clientY: y, button: 0, isPrimary: true, ...props });
-  return { ui, list, handles, cards, inputs, moves, notices, callbacks, window, fire, workout: () => workout };
+  return { ui, list, document, handles, cards, inputs, moves, notices, callbacks, window, fire, workout: () => workout };
 }
 
 test('touch and mouse dragging start only from the handle and save the final order once', async () => {
@@ -177,4 +181,45 @@ test('a mobile drag near the edge scrolls, while ordinary input interaction neve
   const [id, callback] = f.callbacks.entries().next().value; f.callbacks.delete(id); callback();
   assert.ok(f.window.scrollY > 0); f.ui.cancel(); assert.equal(f.callbacks.size, 0);
   assert.equal(f.moves.length, 0);
+});
+
+test('arrow keys on the handle move one exercise and restore focus to its new handle after rendering', async () => {
+  const f = orderFixture({ rerender: true }), originalHandle = f.handles[1];
+  originalHandle.focus();
+  const down = await f.list.fire('keydown', { target: originalHandle, key: 'ArrowDown' });
+  assert.equal(down.defaultPrevented, true);
+  assert.deepEqual(f.moves, [['b', 2]]);
+  assert.deepEqual(f.workout().map(item => item.id), ['a', 'c', 'b', 'd']);
+  assert.equal(f.document.activeElement, f.handles[2]);
+  assert.notEqual(f.document.activeElement, originalHandle);
+  assert.deepEqual(f.notices, ['B verplaatst naar plek 3.']);
+  await f.list.fire('keydown', { target: f.handles[2], key: 'ArrowUp' });
+  assert.deepEqual(f.workout().map(item => item.id), ['a', 'b', 'c', 'd']);
+  assert.equal(f.document.activeElement, f.handles[1]);
+  assert.deepEqual(f.moves, [['b', 2], ['b', 1]]);
+});
+
+test('keyboard ordering respects boundaries and leaves inputs, modified arrows and read-only controls alone', async () => {
+  const f = orderFixture();
+  for (const [target, key] of [[f.handles[0], 'ArrowUp'], [f.handles[3], 'ArrowDown']]) {
+    assert.equal((await f.list.fire('keydown', { target, key })).defaultPrevented, true);
+  }
+  for (const props of [
+    { target: f.inputs[1], key: 'ArrowDown' },
+    { target: f.handles[1], key: 'ArrowLeft' },
+    ...['altKey', 'ctrlKey', 'metaKey', 'shiftKey'].map(modifier => ({ target: f.handles[1], key: 'ArrowDown', [modifier]: true })),
+  ]) assert.equal((await f.list.fire('keydown', props)).defaultPrevented, false);
+  assert.equal(f.moves.length, 0); assert.equal(f.notices.length, 0);
+  const read = orderFixture({ editable: false });
+  assert.equal((await read.list.fire('keydown', { target: read.handles[1], key: 'ArrowDown' })).defaultPrevented, false);
+  assert.equal(read.moves.length, 0);
+});
+
+test('arrow keys cannot commit or interfere with an active pointer drag', async () => {
+  const f = orderFixture();
+  await f.fire('pointerdown', f.handles[0], 40); await f.fire('pointermove', f.handles[0], 270);
+  assert.equal((await f.list.fire('keydown', { target: f.handles[0], key: 'ArrowDown' })).defaultPrevented, false);
+  assert.equal(f.moves.length, 0); assert.equal(f.cards[0].classList.contains('is-dragging'), true);
+  await f.list.fire('keydown', { target: f.handles[0], key: 'Escape' });
+  assert.equal(f.moves.length, 0); assert.equal(f.cards[0].classList.contains('is-dragging'), false);
 });

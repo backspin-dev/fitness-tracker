@@ -179,7 +179,20 @@ export function setupExerciseOrder({ list, canEdit, onMove, announce, window = g
     }
   }, true);
   list.addEventListener('keydown', event => {
-    if (event.key === 'Escape' && active) { event.preventDefault(); finish(false); }
+    if (event.key === 'Escape' && active) { event.preventDefault(); finish(false); return; }
+    if (active || !['ArrowUp', 'ArrowDown'].includes(event.key) || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey || !canEdit()) return;
+    const handle = event.target.closest('[data-drag-exercise]');
+    const card = handle?.closest('[data-exercise-id]');
+    if (!handle || !card || !list.contains(card)) return;
+    const currentCards = cards(), fromIndex = currentCards.indexOf(card);
+    if (fromIndex < 0) return;
+    event.preventDefault();
+    const targetIndex = fromIndex + (event.key === 'ArrowUp' ? -1 : 1);
+    if (targetIndex < 0 || targetIndex >= currentCards.length) return;
+    const id = card.dataset.exerciseId, name = card.dataset.exerciseName;
+    onMove(id, targetIndex);
+    announce(`${name} verplaatst naar plek ${targetIndex + 1}.`);
+    list.querySelector(`[data-drag-exercise="${id}"]`)?.focus({ preventScroll: true });
   });
   return { cancel: () => finish(false) };
 }

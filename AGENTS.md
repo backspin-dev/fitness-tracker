@@ -64,8 +64,8 @@ de app licht en de privacyregels hieronder intact.
   kaart/render of focusverlies veroorzaken. Nieuwe sets kopiëren de laatste;
   verwijderen vraagt bevestiging en houdt minstens één set. Verslepen commit
   uitsluitend bij loslaten; cancel/Escape/paginawissel verandert niets. Laat
-  invoervelden en de pagina normaal scrollen buiten het handvat. Bied Omhoog/
-  Omlaag als bereikbaar alternatief. De volgorde hoort bij het daglogboek,
+  invoervelden en de pagina normaal scrollen buiten het handvat. Ondersteun
+  pijltoetsen op het geselecteerde handvat, zonder extra knoppen in het bewerkvenster. De volgorde hoort bij het daglogboek,
   behoudt oefen-IDs en gaat mee naar de volgende training.
 - `progress-ui.js`: voortgangsscherm en lichaamsgewicht invoeren.
 - `stats.js` en `stats.css`: statistieken en grafieken zonder externe resources.
@@ -87,16 +87,19 @@ de app licht en de privacyregels hieronder intact.
   hoofdletter-, witruimte- en leestekennormalisatie; raad daarbij geen meervoud
   of betekenis. Een handmatige `rankingKey` mag alleen een bekende cataloguskey
   zijn; zonder override wordt de naam automatisch gekoppeld of genormaliseerd.
-  Behoud vrijheid met één vrij oefennaamveld, optionele suggesties en een
-  ingeklapte ranglijsttoelichting. Geen verplichte extra stap. Behoud bestaande
+  Behoud vrijheid met één vrij oefennaamveld en optionele suggesties. De
+  ranglijstkoppeling is automatisch; geen handmatige keuze of toelichting in
+  het oefenformulier. Bewaar oude expliciete koppelingen bij lezen/importeren;
+  hernoemen zet dezelfde oefen-ID terug op automatische herkenning. Geen verplichte extra stap. Behoud bestaande
   catalogussleutels en houd de clientcatalogus gelijk aan de SQL-catalogus;
   opgeslagen koppelingen moeten bruikbaar blijven.
 - `exercise-names-ui.js`: korte zichtbare suggestielijst tijdens typen. Vrije
-  tekst en opslaan zonder selectie blijven mogelijk. Reserveer een vast
-  begrensd vlak voor suggesties, zodat typen, geen resultaten en andere
-  resultaten de invoervelden of bewaaractie niet verplaatsen. Laat alleen de
-  lijst zelf scrollen wanneer nodig; verplaats de pagina niet bij automatisch
-  verversen. Houd de lijst mobiel begrensd en toetsenbordbedienbaar. Toon openbare
+  tekst en opslaan zonder selectie blijven mogelijk. Toon uitsluitend tijdens
+  typen met passende resultaten een begrensde dropdown boven het formulier,
+  direct onder het naamveld (of erboven als daar meer ruimte is). Geen leeg
+  gereserveerd vlak of tekst zoals “Je kunt deze naam gebruiken”. De lijst mag
+  de invoervelden, bewaaractie of het venster niet verplaatsen. Laat alleen de
+  lijst zelf scrollen wanneer nodig; verplaats de pagina niet bij verversen. Houd de lijst mobiel begrensd en toetsenbordbedienbaar. Toon openbare
   eigen oefennamen als
   Door gebruikers, na catalogussuggesties; promoveer ze niet automatisch naar
   geverifieerde oefeningen. Laad de openbare lijst zonder getypte zoektermen
@@ -193,7 +196,7 @@ bij een opslagfout. Alleen de actuele toestand hoort in de handmatige export.
 
 Controleer ranglijstdeelname zonder gebruikerslogin: alias plus totalen per oefening,
 Squat/Squats samengevoegd, Bench press/apparaat gescheiden, eigen namen behouden,
-koppeling corrigeren zonder geschiedenisverlies, filteren, eenmalige naamstart
+automatische naamkoppeling zonder handmatige selectie, filteren, eenmalige naamstart
 met duidelijke openbare melding en geen publicatie vóór die start. Controleer
 automatische score-updates, gedeelde gebruikersnamen in suggesties, vrije invoer
 en alleen eigen scores kunnen wijzigen,

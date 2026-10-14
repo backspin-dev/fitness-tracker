@@ -1,4 +1,4 @@
-import { EXERCISE_CATALOG, normalizeExerciseName, detectExercise, exerciseSearchScore, resolveRankingExercise, suggestExercises } from './exercise-catalog.js';
+import { normalizeExerciseName, detectExercise, exerciseSearchScore, suggestExercises } from './exercise-catalog.js';
 
 // Een korte lijst helpt bij kiezen; vrij typen blijft altijd mogelijk.
 export function matchingExerciseSuggestions(value, publicNames = [], limit = 6) {
@@ -19,21 +19,42 @@ export function matchingExerciseSuggestions(value, publicNames = [], limit = 6) 
 // Geen getypte zoektermen naar de server: de openbare namen worden eenmaal geladen.
 export function setupExerciseNames({ loadSuggestions, document = globalThis.document }) {
   const $ = id => document.getElementById(id);
-  const name = $('exercise-name'), select = $('exercise-ranking');
-  const panel = $('exercise-suggestion-panel'), list = $('exercise-suggestions');
-  const empty = document.createElement('p'); empty.className = 'exercise-suggestion-empty';
-  panel.append(empty);
-  let initialKey = '', publicNames = [], requested = false, showing = false, matches = [], active = -1;
-  const auto = document.createElement('option'); auto.value = '';
-  select.replaceChildren(auto, ...EXERCISE_CATALOG.map(item => {
-    const option = document.createElement('option'); option.value = item.key; option.textContent = item.label; return option;
-  }));
+  const name = $('exercise-name'), panel = $('exercise-suggestion-panel'), list = $('exercise-suggestions');
+  const view = document.defaultView;
+  let publicNames = [], requested = false, showing = false, matches = [], active = -1;
+  let pointer = null, suppressClick = null;
+
+  function positionPanel() {
+    if (panel.hidden || !view) return;
+    const viewport = view.visualViewport;
+    const leftEdge = viewport?.offsetLeft || 0, topEdge = viewport?.offsetTop || 0;
+    const width = viewport?.width || view.innerWidth, height = viewport?.height || view.innerHeight;
+    if (!Number.isFinite(width) || !Number.isFinite(height)) return;
+    const rect = name.getBoundingClientRect(), gap = 4;
+    if (rect.bottom <= topEdge || rect.top >= topEdge + height) { hideSuggestions(); return; }
+    const below = Math.max(0, topEdge + height - rect.bottom - gap);
+    const above = Math.max(0, rect.top - topEdge - gap);
+    const panelWidth = Math.min(rect.width, Math.max(0, width - 16));
+    panel.style.width = `${panelWidth}px`;
+    panel.style.left = `${Math.max(leftEdge + 8, Math.min(rect.left, leftEdge + width - panelWidth - 8))}px`;
+    const desiredHeight = Math.min(180, panel.scrollHeight || 180);
+    const saveRect = $('save-exercise').getBoundingClientRect();
+    const belowTop = rect.bottom + gap;
+    const coversSave = saveRect.top < belowTop + Math.min(desiredHeight, below) && saveRect.bottom > belowTop;
+    // Vrije invoer moet direct te bewaren blijven, ook in het korte bewerkvenster.
+    const openAbove = (coversSave && above >= desiredHeight) || (below < desiredHeight && above > below);
+    const maxHeight = Math.min(180, openAbove ? above : below);
+    if (maxHeight <= 0) { hideSuggestions(); return; }
+    panel.style.maxHeight = `${maxHeight}px`;
+    const renderedHeight = Math.min(desiredHeight, maxHeight);
+    panel.style.top = `${openAbove ? Math.max(topEdge, rect.top - gap - renderedHeight) : rect.bottom + gap}px`;
+  }
   function highlight(index) {
     active = index;
     [...list.children].forEach((option, position) => option.setAttribute('aria-selected', String(position === active)));
     if (active >= 0 && !list.hidden) {
       name.setAttribute('aria-activedescendant', `exercise-suggestion-${active}`);
-      // Scroll uitsluitend binnen de vaste suggestieruimte, nooit het formulier.
+      // Scroll uitsluitend binnen het keuzemenu, nooit het formulier.
       const option = list.children[active];
       const optionRect = option.getBoundingClientRect(), panelRect = panel.getBoundingClientRect();
       const top = optionRect.top - panelRect.top + panel.scrollTop - panel.clientTop;
@@ -42,38 +63,22 @@ export function setupExerciseNames({ loadSuggestions, document = globalThis.docu
       else if (bottom > panel.scrollTop + panel.clientHeight) panel.scrollTop = bottom - panel.clientHeight;
     } else name.removeAttribute('aria-activedescendant');
   }
-  function visibility(value) {
+  function visibility() {
     const visible = showing && matches.length > 0;
-    // Het paneel houdt altijd dezelfde hoogte; alleen de inhoud wisselt.
-    panel.hidden = false; list.hidden = !visible; empty.hidden = visible;
-    empty.textContent = !value ? 'Typ een oefening voor suggesties.' : showing ?
-      'Geen suggesties. Je kunt deze naam gebruiken.' : 'Je kunt deze naam gebruiken.';
+    panel.hidden = !visible; list.hidden = !visible;
     name.setAttribute('aria-expanded', String(visible));
     $('exercise-suggestion-status').textContent = visible ? `${matches.length} oefensuggesties.` : '';
+    positionPanel();
   }
   function hideSuggestions() {
-    showing = false; visibility(name.value.trim()); highlight(-1); panel.scrollTop = 0;
+    showing = false; pointer = null; visibility(); highlight(-1); panel.scrollTop = 0;
   }
   function choose(item) {
     name.value = item.label;
-    // Een gekozen suggestie gebruikt zijn eigen herkenning, geen eerdere override.
-    select.value = ''; refresh(); hideSuggestions(); name.focus({ preventScroll: true });
+    hideSuggestions(); name.focus({ preventScroll: true });
   }
   function refresh() {
-    const value = name.value.trim();
-    $('exercise-ranking-options').hidden = false;
-    $('exercise-ranking-options').setAttribute('data-empty', String(!value));
-    if (!value) $('exercise-ranking-summary').textContent = 'Naam in de ranglijst';
-    let automatic = value;
-    if (value) {
-      try {
-        automatic = resolveRankingExercise({ name: value }).label;
-        const resolved = resolveRankingExercise({ name: value, rankingKey: select.value || undefined });
-        $('exercise-ranking-summary').textContent = `Ranglijst: ${resolved.label}`;
-      } catch { $('exercise-ranking-summary').textContent = 'Naam in de ranglijst'; }
-    }
-    auto.textContent = value ? `Automatisch: ${automatic}` : 'Automatisch';
-    matches = matchingExerciseSuggestions(value, publicNames);
+    matches = matchingExerciseSuggestions(name.value.trim(), publicNames);
     list.replaceChildren(...matches.map((item, index) => {
       const option = document.createElement('div'); option.id = `exercise-suggestion-${index}`;
       option.className = 'exercise-suggestion'; option.setAttribute('role', 'option'); option.tabIndex = -1;
@@ -81,17 +86,38 @@ export function setupExerciseNames({ loadSuggestions, document = globalThis.docu
       if (item.community) {
         const source = document.createElement('small'); source.textContent = 'Door gebruikers'; option.append(source);
       }
-      // Behoud invoerfocus bij een tik; dit blokkeert het scrollen op touchscreens niet.
+      // Houd een tik beschikbaar na blur, maar laat vegen door de lijst normaal werken.
+      option.addEventListener('pointerdown', event => {
+        if (event.button > 0 || event.isPrimary === false) return;
+        suppressClick = null;
+        pointer = { id: event.pointerId, option, item, x: event.clientX, y: event.clientY, scrollTop: panel.scrollTop };
+      });
       option.addEventListener('mousedown', event => event.preventDefault());
-      option.addEventListener('click', () => choose(item));
+      option.addEventListener('click', () => {
+        if (suppressClick === option) { suppressClick = null; return; }
+        choose(item);
+      });
       return option;
     }));
-    visibility(value);
+    visibility();
     highlight(list.hidden ? -1 : Math.min(active, matches.length - 1));
   }
-  name.addEventListener('input', () => { showing = true; active = -1; panel.scrollTop = 0; refresh(); });
-  name.addEventListener('blur', hideSuggestions);
-  select.addEventListener('change', refresh);
+  function finishPointer(event) {
+    if (!pointer || event.pointerId !== pointer.id) return;
+    const interaction = pointer; pointer = null; suppressClick = interaction.option;
+    if (event.type !== 'pointercancel' && interaction.option.contains(event.target) &&
+        Math.abs(event.clientX - interaction.x) < 8 && Math.abs(event.clientY - interaction.y) < 8 &&
+        panel.scrollTop === interaction.scrollTop) choose(interaction.item);
+    else if (document.activeElement !== name) hideSuggestions();
+  }
+  document.addEventListener('pointerup', finishPointer);
+  document.addEventListener('pointercancel', finishPointer);
+  view?.addEventListener('scroll', positionPanel, true);
+  view?.addEventListener('resize', positionPanel);
+  view?.visualViewport?.addEventListener('resize', positionPanel);
+  view?.visualViewport?.addEventListener('scroll', positionPanel);
+  name.addEventListener('input', () => { pointer = null; showing = true; active = -1; panel.scrollTop = 0; refresh(); });
+  name.addEventListener('blur', () => { if (!pointer) hideSuggestions(); });
   name.addEventListener('keydown', event => {
     if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
       showing = true; refresh();
@@ -108,16 +134,15 @@ export function setupExerciseNames({ loadSuggestions, document = globalThis.docu
   name.addEventListener('focus', async () => {
     if (requested) return;
     requested = true;
-    try { publicNames = await loadSuggestions(); refresh(); }
-    catch { /* Offline blijven de catalogussuggesties en vrije invoer werken. */ }
+    try {
+      publicNames = await loadSuggestions();
+      if (!pointer) refresh();
+    } catch { /* Offline blijven de catalogussuggesties en vrije invoer werken. */ }
   });
   return {
-    open(exercise) {
-      initialKey = exercise?.rankingKey || ''; select.value = initialKey;
-      showing = false; active = -1; panel.scrollTop = 0;
-      $('exercise-ranking-options').open = false; refresh();
+    open() {
+      pointer = null; suppressClick = null;
+      showing = false; active = -1; panel.scrollTop = 0; refresh();
     },
-    getRankingKey: () => select.value || undefined,
-    hasChanged: () => select.value !== initialKey,
   };
 }

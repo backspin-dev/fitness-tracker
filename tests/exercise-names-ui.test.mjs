@@ -4,15 +4,21 @@ import { matchingExerciseSuggestions, setupExerciseNames } from '../exercise-nam
 
 function fixture(loadSuggestions = async () => []) {
   class Element {
-    constructor(tag) { this.tag = tag; this.children = []; this.value = ''; this.attributes = new Map(); this.listeners = new Map(); this.hidden = false; this.scrollTop = 0; this.clientTop = 0; this.clientHeight = 180; }
+    constructor(tag) {
+      this.tag = tag; this.children = []; this.value = ''; this.attributes = new Map(); this.listeners = new Map();
+      this.hidden = false; this.scrollTop = 0; this.clientTop = 0; this.clientHeight = 180; this.style = {};
+    }
     append(...children) { this.children.push(...children); }
     replaceChildren(...children) { this.children = children; }
+    contains(target) { return target === this || this.children.some(child => child.contains(target)); }
     setAttribute(key, value) { this.attributes.set(key, value); }
     getAttribute(key) { return this.attributes.get(key) ?? null; }
     removeAttribute(key) { this.attributes.delete(key); }
     addEventListener(type, handler) { if (!this.listeners.has(type)) this.listeners.set(type, []); this.listeners.get(type).push(handler); }
     async fire(type, props = {}) {
-      const event = { ...props, defaultPrevented: false, stopped: false,
+      if (type === 'focus') document.activeElement = this;
+      if (type === 'blur' && document.activeElement === this) document.activeElement = props.relatedTarget ?? null;
+      const event = { type, target: this, ...props, defaultPrevented: false, stopped: false,
         preventDefault() { this.defaultPrevented = true; }, stopPropagation() { this.stopped = true; } };
       for (const handler of this.listeners.get(type) ?? []) await handler(event);
       return event;
@@ -20,17 +26,27 @@ function fixture(loadSuggestions = async () => []) {
     focus() { if (document.activeElement !== this) { document.activeElement = this; void this.fire('focus'); } }
     scrollIntoView() { throw new Error('Scrolling a suggestion must never move the page.'); }
     getBoundingClientRect() {
+      if (this.rect) return this.rect;
       const index = /^exercise-suggestion-(\d+)$/.exec(this.id ?? '');
-      return index ? { top: 300 + Number(index[1]) * 45 - nodes['exercise-suggestion-panel'].scrollTop, height: 45 } : { top: 300, height: 180 };
+      const panel = nodes['exercise-suggestion-panel'];
+      const top = Number.parseFloat(panel.style.top) || 300;
+      return index ? { top: top + Number(index[1]) * 45 - panel.scrollTop, height: 45 } : { top, height: panel.clientHeight };
     }
   }
-  const ids = ['exercise-name', 'exercise-ranking', 'exercise-suggestion-panel', 'exercise-suggestions',
-    'exercise-ranking-options', 'exercise-ranking-summary', 'exercise-suggestion-status'];
+  const ids = ['exercise-name', 'exercise-suggestion-panel', 'exercise-suggestions', 'exercise-suggestion-status', 'save-exercise'];
   const nodes = Object.fromEntries(ids.map(id => [id, Object.assign(new Element('div'), { id })]));
-  const document = { createElement: tag => new Element(tag), getElementById: id => nodes[id] };
+  nodes['exercise-name'].rect = { top: 250, bottom: 296, left: 24, width: 342, height: 46 };
+  nodes['save-exercise'].rect = { top: 700, bottom: 748, left: 24, width: 342, height: 48 };
+  Object.defineProperty(nodes['exercise-suggestion-panel'], 'scrollHeight', { get: () => nodes['exercise-suggestions'].children.length * 45 });
+  const view = Object.assign(new Element('window'), { innerWidth: 390, innerHeight: 844 });
+  view.visualViewport = Object.assign(new Element('viewport'), { width: 390, height: 844, offsetLeft: 0, offsetTop: 0 });
+  const document = Object.assign(new Element('document'), {
+    defaultView: view, activeElement: null, createElement: tag => new Element(tag),
+    getElementById: id => { assert.ok(nodes[id], `Unexpected UI dependency: ${id}`); return nodes[id]; },
+  });
   const ui = setupExerciseNames({ loadSuggestions, document });
   ui.open(null);
-  return { nodes, ui, name: nodes['exercise-name'], panel: nodes['exercise-suggestion-panel'], list: nodes['exercise-suggestions'] };
+  return { nodes, ui, document, view, name: nodes['exercise-name'], panel: nodes['exercise-suggestion-panel'], list: nodes['exercise-suggestions'] };
 }
 
 test('suggestions stay short, put catalog exercises first and identify user-added names', () => {
@@ -48,62 +64,64 @@ test('suggestions stay short, put catalog exercises first and identify user-adde
   assert.deepEqual(matchingExerciseSuggestions('', community), []);
 });
 
-test('corrected search stays relevant and public aliases cannot duplicate catalog suggestions',()=>{
- const community=[
-  {exercise_key:'custom:dumbell row eigen variant',exercise_name:'Dumbell row eigen variant'},
-  {exercise_key:'custom:reverse fly machine',exercise_name:'Reverse fly machine'},
- ];
- const rows=matchingExerciseSuggestions('dumbel row',community);
- assert.ok(rows.some(item=>item.key==='ex:dumbbell-row'));
- assert.ok(rows.every(item=>/row/iu.test(item.label)));
- const reverse=matchingExerciseSuggestions('reverse fly machine',community);
- assert.equal(reverse.filter(item=>item.label==='Reverse fly machine').length,1);
- assert.equal(reverse.find(item=>item.label==='Reverse fly machine').community,false);
+test('corrected search stays relevant and public aliases cannot duplicate catalog suggestions', () => {
+  const community = [
+    { exercise_key: 'custom:dumbell row eigen variant', exercise_name: 'Dumbell row eigen variant' },
+    { exercise_key: 'custom:reverse fly machine', exercise_name: 'Reverse fly machine' },
+  ];
+  const rows = matchingExerciseSuggestions('dumbel row', community);
+  assert.ok(rows.some(item => item.key === 'ex:dumbbell-row'));
+  assert.ok(rows.every(item => /row/iu.test(item.label)));
+  const reverse = matchingExerciseSuggestions('reverse fly machine', community);
+  assert.equal(reverse.filter(item => item.label === 'Reverse fly machine').length, 1);
+  assert.equal(reverse.find(item => item.label === 'Reverse fly machine').community, false);
 });
 
-test('typing shows matching exercises without requiring a choice or intercepting free-name Enter', async () => {
-  const { name, panel, list, ui } = fixture();
-  assert.equal(panel.hidden, false);
-  assert.equal(list.hidden, true);
+test('only matching input opens suggestions; empty and free-name input need no placeholder or selection', async () => {
+  const { name, panel, list, nodes, ui } = fixture();
+  assert.equal(panel.hidden, true); assert.equal(list.hidden, true);
+  assert.deepEqual(Object.keys(ui), ['open']);
+  assert.equal(panel.children.length, 0);
   name.value = 'squat'; await name.fire('input');
   assert.equal(panel.hidden, false);
   assert.ok(list.children.length >= 3 && list.children.length <= 6);
-  assert.equal(name.value, 'squat');
-  assert.equal(name.getAttribute('aria-expanded'), 'true');
+  assert.equal(name.value, 'squat'); assert.equal(name.getAttribute('aria-expanded'), 'true');
   assert.equal((await name.fire('keydown', { key: 'Enter' })).defaultPrevented, false);
-  assert.equal(ui.getRankingKey(), undefined);
-  name.value = 'Mijn compleet eigen oefening'; await name.fire('input');
-  assert.equal(panel.hidden, false);
-  assert.equal(list.hidden, true);
-  assert.equal(name.value, 'Mijn compleet eigen oefening');
-  assert.equal((await name.fire('keydown', { key: 'Enter' })).defaultPrevented, false);
+  for (const value of ['Mijn compleet eigen oefening', '']) {
+    name.value = value; await name.fire('input');
+    assert.equal(panel.hidden, true); assert.equal(list.hidden, true);
+    assert.equal(name.getAttribute('aria-expanded'), 'false');
+    assert.equal(nodes['exercise-suggestion-status'].textContent, '');
+    assert.equal(name.value, value);
+    assert.equal((await name.fire('keydown', { key: 'Enter' })).defaultPrevented, false);
+  }
 });
 
-test('keyboard selection is explicit, Escape only closes an open list and opening an edit preserves its override', async () => {
-  const { name, panel, list, nodes, ui } = fixture();
+test('keyboard selection is explicit, Escape closes only an open list, and editing starts closed', async () => {
+  const { name, panel, list, ui } = fixture();
   name.value = 'Mijn press'; ui.open({ rankingKey: 'ex:bench-press' });
-  assert.equal(panel.hidden, false);
-  assert.equal(list.hidden, true);
-  assert.equal(ui.getRankingKey(), 'ex:bench-press');
+  assert.equal(panel.hidden, true); assert.equal(name.value, 'Mijn press');
   name.value = 'squat'; await name.fire('input');
   const label = list.children[0].children[0].textContent;
   assert.equal((await name.fire('keydown', { key: 'ArrowDown' })).defaultPrevented, true);
   assert.equal(name.getAttribute('aria-activedescendant'), list.children[0].id);
   assert.equal(list.children[0].getAttribute('aria-selected'), 'true');
   assert.equal((await name.fire('keydown', { key: 'Enter' })).defaultPrevented, true);
-  assert.equal(name.value, label); assert.equal(panel.hidden, false); assert.equal(list.hidden, true);
-  assert.equal(ui.getRankingKey(), undefined); assert.equal(ui.hasChanged(), true);
-  assert.match(nodes['exercise-ranking-summary'].textContent, /Ranglijst: /);
+  assert.equal(name.value, label); assert.equal(panel.hidden, true); assert.equal(list.hidden, true);
+  assert.equal(name.getAttribute('aria-activedescendant'), null);
   name.value = 'squat'; await name.fire('input');
   const escape = await name.fire('keydown', { key: 'Escape' });
   assert.equal(escape.defaultPrevented, true); assert.equal(escape.stopped, true);
-  assert.equal(panel.hidden, false);
-  assert.equal(list.hidden, true);
+  assert.equal(panel.hidden, true); assert.equal(list.hidden, true);
   assert.equal((await name.fire('keydown', { key: 'Escape' })).defaultPrevented, false);
   assert.equal(name.value, 'squat');
+  await name.fire('keydown', { key: 'ArrowUp' });
+  assert.equal(list.children.at(-1).getAttribute('aria-selected'), 'true');
+  assert.equal((await name.fire('keydown', { key: 'Tab' })).defaultPrevented, false);
+  assert.equal(panel.hidden, true);
 });
 
-test('community names load once without typed queries and tapping selects text without submitting', async () => {
+test('community names load once without typed queries; clicks select without submitting and blur closes', async () => {
   const calls = [];
   const { name, list, panel } = fixture(async (...args) => {
     calls.push(args); return [{ exercise_key: 'custom:example tiger squat', exercise_name: 'Example tiger squat' }];
@@ -115,30 +133,40 @@ test('community names load once without typed queries and tapping selects text w
   assert.equal(list.children[0].children[1].textContent, 'Door gebruikers');
   assert.equal((await list.children[0].fire('mousedown')).defaultPrevented, true);
   await list.children[0].fire('click');
-  assert.equal(name.value, 'Example tiger squat'); assert.equal(panel.hidden, false); assert.equal(list.hidden, true);
-  await name.fire('blur'); assert.equal(name.value, 'Example tiger squat');
+  assert.equal(name.value, 'Example tiger squat'); assert.equal(panel.hidden, true);
+  name.value = 'squat'; await name.fire('input');
+  await name.fire('blur'); assert.equal(panel.hidden, true); assert.equal(name.value, 'squat');
 });
 
+test('a touch choice survives input blur without preventing native list scrolling', async () => {
+  const { name, list, panel, document } = fixture();
+  await name.fire('focus'); name.value = 'squat'; await name.fire('input');
+  const option = list.children[0], label = option.children[0].textContent;
+  const down = await option.fire('pointerdown', { pointerId: 7, button: 0, clientX: 80, clientY: 320 });
+  assert.equal(down.defaultPrevented, false);
+  await name.fire('blur'); assert.equal(panel.hidden, false);
+  await document.fire('pointerup', { pointerId: 7, target: option.children[0], clientX: 82, clientY: 321 });
+  assert.equal(name.value, label); assert.equal(panel.hidden, true); assert.equal(document.activeElement, name);
+  await option.fire('click'); assert.equal(name.value, label); assert.equal(panel.hidden, true);
+});
 
-test('empty, matching and custom input keep the suggestion and ranking slots in place', async () => {
-  const { name, panel, list, nodes } = fixture();
-  const ranking = nodes['exercise-ranking-options'];
-  assert.equal(panel.hidden, false); assert.equal(ranking.hidden, false);
-  assert.equal(ranking.getAttribute('data-empty'), 'true');
-  for (const value of ['s', 'squat', 'Squat', 'Mijn vrije oefening', '']) {
-    name.value = value; await name.fire('input');
-    assert.equal(panel.hidden, false); assert.equal(ranking.hidden, false);
-    assert.equal(ranking.getAttribute('data-empty'), String(!value));
-    const placeholder = panel.children.at(-1);
-    assert.equal(placeholder.hidden, !list.hidden);
-    if (!value) assert.equal(placeholder.textContent, 'Typ een oefening voor suggesties.');
-    if (value === 'Mijn vrije oefening') assert.equal(placeholder.textContent, 'Geen suggesties. Je kunt deze naam gebruiken.');
+test('scrolling, cancelling or releasing outside a touched suggestion does not select it', async () => {
+  const { name, list, panel, document } = fixture();
+  for (const ending of ['scroll', 'pointercancel', 'outside']) {
+    await name.fire('focus'); name.value = 'squat'; await name.fire('input');
+    const option = list.children[0];
+    await option.fire('pointerdown', { pointerId: 1, button: 0, clientX: 80, clientY: 320 });
+    await name.fire('blur');
+    if (ending === 'scroll') panel.scrollTop = 30;
+    await document.fire(ending === 'pointercancel' ? ending : 'pointerup', {
+      pointerId: 1, target: ending === 'outside' ? document : option, clientX: 80, clientY: 320,
+    });
+    assert.equal(name.value, 'squat'); assert.equal(panel.hidden, true);
+    await option.fire('click'); assert.equal(name.value, 'squat');
   }
-  await name.fire('blur');
-  assert.equal(panel.hidden, false); assert.equal(list.hidden, true);
 });
 
-test('keyboard movement scrolls only inside the fixed suggestion panel', async () => {
+test('keyboard movement scrolls only inside the bounded suggestion panel', async () => {
   const { name, panel, list } = fixture();
   panel.clientHeight = 90;
   name.value = 'squat'; await name.fire('input');
@@ -151,4 +179,40 @@ test('keyboard movement scrolls only inside the fixed suggestion panel', async (
   await name.fire('keydown', { key: 'ArrowUp' });
   await name.fire('keydown', { key: 'ArrowUp' });
   assert.equal(panel.scrollTop, 0);
+});
+
+test('dropdown stays anchored within the visible viewport and flips above the keyboard when needed', async () => {
+  const { name, panel, view } = fixture();
+  name.value = 'squat'; await name.fire('input');
+  assert.equal(panel.style.left, '24px'); assert.equal(panel.style.top, '300px');
+  assert.equal(panel.style.width, '342px'); assert.equal(panel.style.maxHeight, '180px');
+  view.visualViewport.height = 400;
+  await view.visualViewport.fire('resize');
+  assert.equal(panel.style.top, '66px'); assert.equal(panel.style.maxHeight, '180px');
+  name.rect = { top: 180, bottom: 226, left: 30, width: 342, height: 46 };
+  await view.fire('scroll');
+  assert.equal(panel.style.left, '30px'); assert.equal(panel.style.top, '0px');
+  assert.equal(panel.style.maxHeight, '176px');
+  name.rect.top = 450; name.rect.bottom = 496;
+  await view.fire('scroll'); assert.equal(panel.hidden, true);
+});
+
+
+test('edit suggestions open above when a menu below would cover Save, while short menus and add dialogs stay below', async () => {
+  const { name, panel, nodes, view } = fixture(async () => [
+    { exercise_key: 'custom:example tiger squat', exercise_name: 'Example tiger squat' },
+  ]);
+  await name.fire('focus');
+  name.rect = { top: 359, bottom: 407, left: 24, width: 342, height: 48 };
+  nodes['save-exercise'].rect = { top: 461, bottom: 509, left: 24, width: 342, height: 48 };
+  name.value = 'squat'; await name.fire('input');
+  assert.equal(panel.style.top, '175px');
+  assert.ok(Number.parseFloat(panel.style.top) + 180 < nodes['save-exercise'].rect.top);
+  name.value = 'tiger'; await name.fire('input');
+  assert.equal(panel.style.top, '411px');
+  assert.ok(Number.parseFloat(panel.style.top) + 45 < nodes['save-exercise'].rect.top);
+  name.value = 'squat'; await name.fire('input');
+  nodes['save-exercise'].rect = { top: 650, bottom: 698, left: 24, width: 342, height: 48 };
+  await view.fire('resize');
+  assert.equal(panel.style.top, '411px');
 });

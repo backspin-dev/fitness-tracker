@@ -55,8 +55,8 @@ trainingen. Iedere set heeft een eigen gewicht en aantal reps. Met **Set toevoeg
 kopieer je de laatste set; daarna kun je beide waarden aanpassen. Verwijderen vraagt
 een korte bevestiging en er blijft altijd minstens één set staan.
 
-Versleep het handvat naast de oefennaam om de volgorde te wijzigen. Via het handvat
-of het oefenmenu kun je ook **Omhoog** en **Omlaag** kiezen. De volgorde wordt met
+Versleep het handvat naast de oefennaam om de volgorde te wijzigen. Met een
+toetsenbord kun je het handvat selecteren en de pijlen omhoog/omlaag gebruiken. De volgorde wordt met
 die trainingsdag bewaard en bij een volgende training overgenomen. Eerdere
 opgeslagen trainingsdagen behouden hun eigen volgorde.
 
@@ -168,9 +168,9 @@ keer voor deze werkwijze. Offline kun je gewoon trainen; de scores worden
 verstuurd zodra de app weer verbinding heeft.
 
 Bij het invoeren van een oefening kun je gewoon je eigen naam typen. Tijdens
-het typen zie je een korte lijst met passende oefeningen binnen een vast
-begrensd vlak. De invoervelden en bewaaractie blijven op hun plek terwijl de
-resultaten veranderen. Tik op een suggestie
+het typen verschijnt alleen bij passende resultaten een korte keuzelijst onder
+het naamveld. De lijst ligt boven het formulier: invoervelden en bewaaractie
+blijven op hun plek terwijl de resultaten veranderen. Er is geen leeg suggestieblok. Tik op een suggestie
 of gebruik je eigen tekst; een keuze uit de lijst is nooit verplicht. De
 catalogus bevat **227 bestaande oefeningen** en herkenbare varianten,
 gecontroleerd aan de hand van onder meer [ACE](https://www.acefitness.org/resources/everyone/exercise-library/),
@@ -189,9 +189,10 @@ oefening herkenbaar te houden. Bekende varianten, zoals
 uitvoeringen, zoals **Bench press** en **Bench press machine**, blijven apart.
 Onbekende eigen oefeningen krijgen een eigen ranglijst; hoofdletters,
 witruimte en leestekens maken daarbij geen afzonderlijke ranglijst. De app raadt
-niet zelf welke andere namen of uitvoeringen hetzelfde zijn. Een ingeklapte
-toelichting toont de koppeling voor de ranglijst; zo nodig kun je je eigen
-oefening aan een bekende oefening koppelen zonder je eigen naam te veranderen.
+niet zelf welke andere namen of uitvoeringen hetzelfde zijn. De ranglijstkoppeling
+wordt automatisch bepaald; er is geen handmatige keuze in het oefenformulier.
+Oude expliciete koppelingen in bestaande back-ups blijven bruikbaar. Bij hernoemen
+van zo’n oefening wordt de naam weer automatisch gebruikt.
 Je oefeningen en geschiedenis in het lokale logboek blijven aan hun eigen IDs
 gekoppeld.
 

@@ -133,8 +133,7 @@ function render() {
     handle.type = 'button'; handle.dataset.dragExercise = exercise.id;
     handle.setAttribute('aria-label', `${exercise.name} verplaatsen`);
     handle.setAttribute('aria-describedby', 'exercise-order-help');
-    handle.setAttribute('aria-pressed', 'false'); handle.title = 'Versleep om de volgorde te wijzigen';
-    handle.addEventListener('click', () => openExercise(getWorkout(state, date, split).find(item => item.id === exercise.id)));
+    handle.setAttribute('aria-pressed', 'false'); handle.title = 'Versleep om de volgorde te wijzigen; gebruik ↑ en ↓ op het toetsenbord';
     top.append(textNode('span', String(index + 1).padStart(2, '0'), 'exercise-number'), textNode('h3', exercise.name, 'exercise-name'), handle, edit);
     const sets = createExerciseSets(exercise, {
       getExercise: () => getWorkout(state, date, split).find(item => item.id === exercise.id),
@@ -167,18 +166,11 @@ function openExercise(exercise = null) {
   $('exercise-reps').value = String(exercise?.reps ?? 0);
   $('exercise-initial-set').hidden = !!exercise;
   $('exercise-weight').required = $('exercise-reps').required = !exercise;
-  $('exercise-order-actions').hidden = !exercise;
-  updateOrderActions();
   $('delete-exercise').hidden = !exercise;
   $('save-exercise').textContent = exercise ? 'Wijzigingen bewaren' : 'Toevoegen';
   $('exercise-error').hidden = true;
-  exerciseNames.open(exercise);
+  exerciseNames.open();
   $('exercise-dialog').showModal(); $('exercise-name').focus();
-}
-function updateOrderActions() {
-  const workout = getWorkout(state, date, split), index = workout.findIndex(item => item.id === editId);
-  $('move-exercise-up').disabled = !loaded || index <= 0;
-  $('move-exercise-down').disabled = !loaded || index < 0 || index >= workout.length - 1;
 }
 function moveExercise(id, targetIndex) {
   if (!loaded || importing) return;
@@ -223,21 +215,15 @@ $('exercise-form').addEventListener('submit', event => {
   const current = workout.find(item => item.id === editId);
   if (editId && !current) return;
   const exercise = current ? { ...current, name } : { id: crypto.randomUUID(), name, weight, reps, sets: 1 };
-  const rankingKey = exerciseNames.getRankingKey();
-  if (rankingKey) exercise.rankingKey = rankingKey; else delete exercise.rankingKey;
+  const nameChanged = current && name !== current.name;
+  if (nameChanged) delete exercise.rankingKey;
   let base = state;
-  try { if (editId && exerciseNames.hasChanged()) base = setExerciseRanking(state, split, editId, rankingKey || null); }
+  // Oude expliciete koppelingen blijven leesbaar; bij hernoemen kiest de naam weer automatisch.
+  try { if (nameChanged && current.rankingKey) base = setExerciseRanking(state, split, editId, null); }
   catch (error) { $('exercise-error').textContent = error.message; $('exercise-error').hidden = false; return; }
   if (editId) workout[workout.findIndex(item => item.id === editId)] = exercise; else workout.push(exercise);
   changeWorkout(workout, true, base); $('exercise-dialog').close();
 });
-for (const [id, direction] of [['move-exercise-up', -1], ['move-exercise-down', 1]]) {
-  $(id).addEventListener('click', () => {
-    const workout = getWorkout(state, date, split), index = workout.findIndex(item => item.id === editId);
-    if (index < 0 || index + direction < 0 || index + direction >= workout.length) return;
-    moveExercise(editId, index + direction); updateOrderActions(); toast(`Verplaatst naar plek ${index + direction + 1}.`);
-  });
-}
 $('delete-exercise').addEventListener('click', async () => {
   if (await confirmAction('Oefening verwijderen?', 'Deze oefening verdwijnt uit deze training. Eerdere opgeslagen trainingen blijven bewaard.', 'Verwijderen')) {
     changeWorkout(getWorkout(state, date, split).filter(item => item.id !== editId)); $('exercise-dialog').close();
