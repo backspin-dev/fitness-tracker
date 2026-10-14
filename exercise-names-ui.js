@@ -27,27 +27,17 @@ export function setupExerciseNames({ loadSuggestions, document = globalThis.docu
   function positionPanel() {
     if (panel.hidden || !view) return;
     const viewport = view.visualViewport;
-    const leftEdge = viewport?.offsetLeft || 0, topEdge = viewport?.offsetTop || 0;
-    const width = viewport?.width || view.innerWidth, height = viewport?.height || view.innerHeight;
-    if (!Number.isFinite(width) || !Number.isFinite(height)) return;
+    const topEdge = viewport?.offsetTop || 0, height = viewport?.height || view.innerHeight;
+    if (!Number.isFinite(height)) return;
     const rect = name.getBoundingClientRect(), gap = 4;
-    if (rect.bottom <= topEdge || rect.top >= topEdge + height) { hideSuggestions(); return; }
-    const below = Math.max(0, topEdge + height - rect.bottom - gap);
-    const above = Math.max(0, rect.top - topEdge - gap);
-    const panelWidth = Math.min(rect.width, Math.max(0, width - 16));
-    panel.style.width = `${panelWidth}px`;
-    panel.style.left = `${Math.max(leftEdge + 8, Math.min(rect.left, leftEdge + width - panelWidth - 8))}px`;
-    const desiredHeight = Math.min(180, panel.scrollHeight || 180);
-    const saveRect = $('save-exercise').getBoundingClientRect();
     const belowTop = rect.bottom + gap;
-    const coversSave = saveRect.top < belowTop + Math.min(desiredHeight, below) && saveRect.bottom > belowTop;
-    // Vrije invoer moet direct te bewaren blijven, ook in het korte bewerkvenster.
-    const openAbove = (coversSave && above >= desiredHeight) || (below < desiredHeight && above > below);
-    const maxHeight = Math.min(180, openAbove ? above : below);
+    if (rect.bottom <= topEdge || belowTop >= topEdge + height) { hideSuggestions(); return; }
+    const saveRect = $('save-exercise').getBoundingClientRect();
+    const beforeSave = saveRect.top >= rect.bottom ? Math.max(0, saveRect.top - belowTop - gap) : Infinity;
+    const maxHeight = Math.min(180, topEdge + height - belowTop, beforeSave);
     if (maxHeight <= 0) { hideSuggestions(); return; }
+    // CSS verankert de lijst altijd onder het veld; begrens alleen de scrolruimte.
     panel.style.maxHeight = `${maxHeight}px`;
-    const renderedHeight = Math.min(desiredHeight, maxHeight);
-    panel.style.top = `${openAbove ? Math.max(topEdge, rect.top - gap - renderedHeight) : rect.bottom + gap}px`;
   }
   function highlight(index) {
     active = index;

@@ -55,8 +55,11 @@ trainingen. Iedere set heeft een eigen gewicht en aantal reps. Met **Set toevoeg
 kopieer je de laatste set; daarna kun je beide waarden aanpassen. Verwijderen vraagt
 een korte bevestiging en er blijft altijd minstens één set staan.
 
-Versleep het handvat naast de oefennaam om de volgorde te wijzigen. Met een
-toetsenbord kun je het handvat selecteren en de pijlen omhoog/omlaag gebruiken. De volgorde wordt met
+Versleep het handvat naast de oefennaam om de volgorde te wijzigen. Tijdens
+het slepen worden de oefeningen tijdelijk compacte koppen; de andere oefeningen
+schuiven direct naar hun nieuwe plek. Bij de boven- of onderrand scrollt het
+scherm mee, ook als je je vinger daar even stilhoudt. Bij loslaten verschijnen
+de sets weer en wordt de volgorde bewaard. Met een toetsenbord kun je het handvat selecteren en de pijlen omhoog/omlaag gebruiken. De volgorde wordt met
 die trainingsdag bewaard en bij een volgende training overgenomen. Eerdere
 opgeslagen trainingsdagen behouden hun eigen volgorde.
 
@@ -169,7 +172,7 @@ verstuurd zodra de app weer verbinding heeft.
 
 Bij het invoeren van een oefening kun je gewoon je eigen naam typen. Tijdens
 het typen verschijnt alleen bij passende resultaten een korte keuzelijst onder
-het naamveld. De lijst ligt boven het formulier: invoervelden en bewaaractie
+het naamveld. De lijst blijft onder de tekst die je typt: invoervelden en bewaaractie
 blijven op hun plek terwijl de resultaten veranderen. Er is geen leeg suggestieblok. Tik op een suggestie
 of gebruik je eigen tekst; een keuze uit de lijst is nooit verplicht. De
 catalogus bevat **227 bestaande oefeningen** en herkenbare varianten,

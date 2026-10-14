@@ -63,7 +63,12 @@ de app licht en de privacyregels hieronder intact.
   afzonderlijk handvat met Pointer Events. Kleine invoerwijzigingen mogen geen
   kaart/render of focusverlies veroorzaken. Nieuwe sets kopiëren de laatste;
   verwijderen vraagt bevestiging en houdt minstens één set. Verslepen commit
-  uitsluitend bij loslaten; cancel/Escape/paginawissel verandert niets. Laat
+  uitsluitend bij loslaten; cancel/Escape/paginawissel herstelt de originele
+  volgorde zonder opslag. Tijdens slepen compacte oefenkoppen met dezelfde DOM/IDs,
+  een verschuivende placeholder en direct opschuivende buren. Bewaar het scrollanker
+  bij compactmaken en uitvouwen. Automatisch scrollen gebruikt brede zichtbare
+  randzones boven de footer, houdt rekening met visualViewport en blijft lopen
+  bij stilgehouden vinger; scroll niet door lege opvulruimte. Laat
   invoervelden en de pagina normaal scrollen buiten het handvat. Ondersteun
   pijltoetsen op het geselecteerde handvat, zonder extra knoppen in het bewerkvenster. De volgorde hoort bij het daglogboek,
   behoudt oefen-IDs en gaat mee naar de volgende training.
@@ -95,8 +100,10 @@ de app licht en de privacyregels hieronder intact.
   opgeslagen koppelingen moeten bruikbaar blijven.
 - `exercise-names-ui.js`: korte zichtbare suggestielijst tijdens typen. Vrije
   tekst en opslaan zonder selectie blijven mogelijk. Toon uitsluitend tijdens
-  typen met passende resultaten een begrensde dropdown boven het formulier,
-  direct onder het naamveld (of erboven als daar meer ruimte is). Geen leeg
+  typen met passende resultaten een begrensde dropdown uitsluitend onder het
+  naamveld, verankerd aan een relatieve wrapper om het veld. Geen menu boven of
+  over de getypte tekst; beperk de hoogte tot de beschikbare ruimte en laat de
+  lijst zelf scrollen. Houd de bewaaractie bereikbaar. Geen leeg
   gereserveerd vlak of tekst zoals “Je kunt deze naam gebruiken”. De lijst mag
   de invoervelden, bewaaractie of het venster niet verplaatsen. Laat alleen de
   lijst zelf scrollen wanneer nodig; verplaats de pagina niet bij verversen. Houd de lijst mobiel begrensd en toetsenbordbedienbaar. Toon openbare

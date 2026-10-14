@@ -6,8 +6,10 @@ function fixture(loadSuggestions = async () => []) {
   class Element {
     constructor(tag) {
       this.tag = tag; this.children = []; this.value = ''; this.attributes = new Map(); this.listeners = new Map();
-      this.hidden = false; this.scrollTop = 0; this.clientTop = 0; this.clientHeight = 180; this.style = {};
+      this.hidden = false; this.scrollTop = 0; this.clientTop = 0; this.heightLimit = 180; this.style = {};
     }
+    get clientHeight() { return Math.min(this.heightLimit, Number.parseFloat(this.style.maxHeight) || this.heightLimit); }
+    set clientHeight(value) { this.heightLimit = value; }
     append(...children) { this.children.push(...children); }
     replaceChildren(...children) { this.children = children; }
     contains(target) { return target === this || this.children.some(child => child.contains(target)); }
@@ -29,7 +31,7 @@ function fixture(loadSuggestions = async () => []) {
       if (this.rect) return this.rect;
       const index = /^exercise-suggestion-(\d+)$/.exec(this.id ?? '');
       const panel = nodes['exercise-suggestion-panel'];
-      const top = Number.parseFloat(panel.style.top) || 300;
+      const top = nodes['exercise-name'].rect.bottom + 4;
       return index ? { top: top + Number(index[1]) * 45 - panel.scrollTop, height: 45 } : { top, height: panel.clientHeight };
     }
   }
@@ -181,38 +183,46 @@ test('keyboard movement scrolls only inside the bounded suggestion panel', async
   assert.equal(panel.scrollTop, 0);
 });
 
-test('dropdown stays anchored within the visible viewport and flips above the keyboard when needed', async () => {
+test('dropdown uses native placement below the input, limiting its height to the visible viewport', async () => {
   const { name, panel, view } = fixture();
   name.value = 'squat'; await name.fire('input');
-  assert.equal(panel.style.left, '24px'); assert.equal(panel.style.top, '300px');
-  assert.equal(panel.style.width, '342px'); assert.equal(panel.style.maxHeight, '180px');
+  assert.deepEqual(panel.style, { maxHeight: '180px' });
+  assert.equal(panel.getBoundingClientRect().top, name.getBoundingClientRect().bottom + 4);
   view.visualViewport.height = 400;
   await view.visualViewport.fire('resize');
-  assert.equal(panel.style.top, '66px'); assert.equal(panel.style.maxHeight, '180px');
+  assert.deepEqual(panel.style, { maxHeight: '100px' });
+  assert.equal(panel.getBoundingClientRect().top, 300);
+  view.visualViewport.offsetTop = 50;
+  await view.visualViewport.fire('scroll');
+  assert.deepEqual(panel.style, { maxHeight: '150px' });
   name.rect = { top: 180, bottom: 226, left: 30, width: 342, height: 46 };
   await view.fire('scroll');
-  assert.equal(panel.style.left, '30px'); assert.equal(panel.style.top, '0px');
-  assert.equal(panel.style.maxHeight, '176px');
+  assert.deepEqual(panel.style, { maxHeight: '180px' });
+  assert.equal(panel.getBoundingClientRect().top, 230);
   name.rect.top = 450; name.rect.bottom = 496;
   await view.fire('scroll'); assert.equal(panel.hidden, true);
+  assert.equal(panel.style.top, undefined);
 });
 
-
-test('edit suggestions open above when a menu below would cover Save, while short menus and add dialogs stay below', async () => {
-  const { name, panel, nodes, view } = fixture(async () => [
-    { exercise_key: 'custom:example tiger squat', exercise_name: 'Example tiger squat' },
-  ]);
-  await name.fire('focus');
+test('edit suggestions stay below and scroll in the space before Save; add dialogs allow a taller list', async () => {
+  const { name, panel, nodes, view } = fixture();
   name.rect = { top: 359, bottom: 407, left: 24, width: 342, height: 48 };
   nodes['save-exercise'].rect = { top: 461, bottom: 509, left: 24, width: 342, height: 48 };
   name.value = 'squat'; await name.fire('input');
-  assert.equal(panel.style.top, '175px');
-  assert.ok(Number.parseFloat(panel.style.top) + 180 < nodes['save-exercise'].rect.top);
-  name.value = 'tiger'; await name.fire('input');
-  assert.equal(panel.style.top, '411px');
-  assert.ok(Number.parseFloat(panel.style.top) + 45 < nodes['save-exercise'].rect.top);
-  name.value = 'squat'; await name.fire('input');
+  assert.deepEqual(panel.style, { maxHeight: '46px' });
+  assert.equal(panel.getBoundingClientRect().top, 411);
+  assert.ok(panel.getBoundingClientRect().top + panel.clientHeight < nodes['save-exercise'].rect.top);
+  await name.fire('keydown', { key: 'ArrowDown' });
+  await name.fire('keydown', { key: 'ArrowDown' });
+  assert.equal(panel.scrollTop, 44);
+  assert.equal(panel.getBoundingClientRect().top, 411);
   nodes['save-exercise'].rect = { top: 650, bottom: 698, left: 24, width: 342, height: 48 };
   await view.fire('resize');
-  assert.equal(panel.style.top, '411px');
+  assert.deepEqual(panel.style, { maxHeight: '180px' });
+  assert.equal(panel.getBoundingClientRect().top, 411);
+  view.visualViewport.height = 405;
+  await view.visualViewport.fire('resize');
+  assert.equal(panel.hidden, true);
+  assert.equal(panel.style.top, undefined);
+  assert.equal(name.value, 'squat');
 });
