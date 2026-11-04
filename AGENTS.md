@@ -48,7 +48,9 @@ de app licht en de privacyregels hieronder intact.
   Instellingen; Fitness brengt je naar Training. Training, Statistieken,
   Ranglijst en Jouw gegevens zijn gewone pagina’s, geen modale dialogen.
   De trainingspagina toont alleen de training en de bijbehorende bediening.
-  Een gebruiker registreert de training van vandaag met Start training. Daarna
+  Vandaag toont de trainingspagina vóór de start alleen de knop Start training;
+  na de start verschijnen schema, oefenlijst en bediening. Eerdere datums blijven
+  te bekijken. Een gebruiker registreert de training van vandaag met Start training. Daarna
   telt alleen het laatst gekozen onderdeel van die dag, ook na sluiten van de
   app. Sla die keuze direct op; er is geen actie om middernacht nodig. Alleen
   openen of wisselen zonder te starten maakt geen training aan. Oefenwijzigingen

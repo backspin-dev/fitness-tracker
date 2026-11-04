@@ -11,12 +11,11 @@ onderdeel onthoudt zijn eigen training. Een aanpassing wordt vanzelf bewaard.
 Een al opgeslagen dag houdt zijn eigen waarden en wordt niet overschreven door
 een latere training.
 
-Tik op **Start training** om je training van vandaag te registreren. Daarna kun
-je nog een ander onderdeel kiezen. Het laatst gekozen onderdeel van die dag
+Tik op **Start training** om je training van vandaag te registreren en je schema
+en oefeningen te tonen. Daarna kun je nog een ander onderdeel kiezen. Het laatst gekozen onderdeel van die dag
 geldt als je training, ook als je de app daarna sluit. Starten kan alleen voor
-vandaag. Alleen de app openen of een onderdeel bekijken registreert geen
-training. Bewerkingen zonder te starten blijven bewaard als concept, maar tellen
-niet mee in statistieken of de ranglijst. Een gestarte training wordt vanaf de
+vandaag. Alleen de app openen registreert geen training. Eerder bewaarde
+concepten tellen niet mee in statistieken of de ranglijst. Een gestarte training wordt vanaf de
 volgende dag getoond in de geschiedenis, statistieken en ranglijst. Ook een
 gestarte training zonder oefeningen telt mee in het aantal trainingen.
 

@@ -25,8 +25,9 @@ export function setupNavigation({ document = globalThis.document, window = globa
     for (const callback of callbacks.get(page) || []) callback();
     const section = [...document.querySelectorAll('[data-app-page]')].find(node => node.dataset.appPage === page);
     if (focus) {
-      const heading = section?.querySelector('h2, h1');
-      if (heading) { heading.setAttribute('tabindex', '-1'); heading.focus({ preventScroll: true }); }
+      const start = page === 'training' ? section?.querySelector('#start-training:not([hidden])') : null;
+      const target = start ? (start.disabled ? section : start) : section?.querySelector('h2, h1');
+      if (target) { if (target !== start) target.setAttribute('tabindex', '-1'); target.focus({ preventScroll: true }); }
     }
     window.scrollTo({ top: positions.get(page) || 0, left: 0, behavior: 'auto' });
   }

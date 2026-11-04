@@ -71,3 +71,17 @@ test('busy imports keep navigation and URL unchanged, then ordinary menu links w
   const event = { button: 0, target: { closest: () => env.links[3] }, preventDefault() { this.prevented = true; } };
   env.clicks.get('click')(event); assert.equal(event.prevented, true); assert.equal(navigation.isCurrent('gegevens'), true);
 });
+
+test('returning to training focuses the start button until a workout is open', () => {
+  const env = environment(), training = env.pages[0], focused = [];
+  let awaitingStart = true;
+  const start = { disabled: false, focus: () => focused.push('start') };
+  const heading = { setAttribute() {}, focus: () => focused.push('heading') };
+  training.querySelector = selector => selector.startsWith('#start-training') ? (awaitingStart ? start : null) : heading;
+  const navigation = setupNavigation(env); navigation.start();
+  navigation.open('statistieken'); navigation.open('training');
+  assert.deepEqual(focused, ['start']);
+  awaitingStart = false;
+  navigation.open('statistieken'); navigation.open('training');
+  assert.deepEqual(focused, ['start', 'heading']);
+});

@@ -93,9 +93,16 @@ function updateContext() {
   $('next-day').disabled = date >= today;
   $('previous-day').disabled = date <= '1900-01-01';
   const started = Object.hasOwn(state.trainingTracking.days, today);
+  const awaitingStart = date === today && !started;
   const startButton = $('start-training');
-  startButton.hidden = date !== today || started;
+  startButton.hidden = !awaitingStart;
   startButton.disabled = !loaded || importing || date !== today || started;
+  $('scheme-heading').hidden = awaitingStart;
+  $('split-tabs').hidden = awaitingStart;
+  $('workout-content').hidden = awaitingStart;
+  const panel = $('workout-panel');
+  if (awaitingStart) { panel.removeAttribute('role'); panel.removeAttribute('aria-labelledby'); }
+  else { panel.setAttribute('role', 'tabpanel'); panel.setAttribute('aria-labelledby', `tab-${split}`); }
   $('training-start-status').hidden = date !== today || !started;
   $('training-start-status').textContent = started ? `Training gestart · ${groupInfo(state.trainingTracking.days[today]).name}` : '';
   const workout = getWorkout(state, date, split);
@@ -113,6 +120,7 @@ function updateContext() {
 }
 function render() {
   workoutOrder?.cancel();
+  stopExerciseVideos($('exercise-list'));
   document.querySelectorAll('#main button, #main input').forEach(item => { item.disabled = false; });
   if (!groupInfo()) split = state.groups.find(group => !group.archived).id;
   $('split-title').textContent = groupInfo().name;
@@ -127,7 +135,6 @@ function render() {
     button.tabIndex = group.id === split ? 0 : -1;
     return button;
   }));
-  $('workout-panel').setAttribute('aria-labelledby', `tab-${split}`);
   const workout = getWorkout(state, date, split);
   const cards = workout.map((exercise, index) => {
     const card = document.createElement('article'); card.className = 'exercise-card';
@@ -221,7 +228,10 @@ $('next-day').addEventListener('click', () => moveDate(1));
 $('add-exercise').addEventListener('click', () => openExercise());
 $('start-training').addEventListener('click', () => {
   if (!loaded || importing || date !== localDate() || Object.hasOwn(state.trainingTracking.days, date)) return;
-  try { state = startTraining(state, date, split); queueSave(); render(); }
+  try {
+    state = startTraining(state, date, split); queueSave(); render();
+    $('split-title').setAttribute('tabindex', '-1'); $('split-title').focus({ preventScroll: true });
+  }
   catch (error) { showError(error.message); }
 });
 $('record-workout').addEventListener('click', async () => { if (await changeWorkout(getWorkout(state, date, split))) toast('Training bewaard.'); });
