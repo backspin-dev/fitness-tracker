@@ -48,6 +48,14 @@ de app licht en de privacyregels hieronder intact.
   Instellingen; Fitness brengt je naar Training. Training, Statistieken,
   Ranglijst en Jouw gegevens zijn gewone pagina’s, geen modale dialogen.
   De trainingspagina toont alleen de training en de bijbehorende bediening.
+  Een gebruiker registreert de training van vandaag met Start training. Daarna
+  telt alleen het laatst gekozen onderdeel van die dag, ook na sluiten van de
+  app. Sla die keuze direct op; er is geen actie om middernacht nodig. Alleen
+  openen of wisselen zonder te starten maakt geen training aan. Oefenwijzigingen
+  zonder start blijven als concept bewaard maar tellen niet in statistieken en
+  ranglijst. Starten kan alleen voor vandaag. Een nieuwe gestarte training telt
+  pas vanaf de volgende dag in geschiedenis, statistieken en ranglijst. Een
+  gestarte training zonder oefeningen telt dan mee in het aantal trainingen.
   De ranglijst opent direct met oefenkeuze en scores. Houd normale pagina’s kort
   en overzichtelijk: geen naamformulier of lange uitleg vóór de scores.
   Naam wijzigen staat in Instellingen; alleen de eerste start vraagt verplicht
@@ -78,8 +86,9 @@ de app licht en de privacyregels hieronder intact.
 - `stats.js` en `stats.css`: statistieken en grafieken zonder externe resources.
   Totale herhalingen zijn de som van alle losse set-reps over opgeslagen trainingen;
   gewicht/reps in grafieken komen uit dezelfde echt uitgevoerde zwaarste set
-  (bij gelijk gewicht meeste reps). Tabellen tonen alle sets. Klaargezette trainingen tellen pas na
-  bewaren mee; aanpassen van een opgeslagen dag vervangt die dag.
+  (bij gelijk gewicht meeste reps). Tabellen tonen alle sets. Alleen gestarte
+  trainingen en behouden oudere geschiedenis tellen mee; aanpassen vervangt de
+  betreffende dag in plaats van dubbel te tellen.
 - `exercise-catalog.js`: echte vaste ranglijstoefeningen met onderzoeksbronnen,
   zorgvuldig gekozen aliassen en invoersuggesties. Voeg geen verzonnen
   catalogusoefeningen toe. Normaliseer hoofdletters en witruimte; voeg alleen bekende
@@ -127,22 +136,27 @@ de app licht en de privacyregels hieronder intact.
   en het verlaten van Training. De iframe geeft alleen de app-origin door via
   strict-origin-when-cross-origin; dat is nodig om YouTube-fout 153 te vermijden.
   Beloof geen advertentievrije, offline of blijvend beschikbare YouTube-video's.
-- `data.js`: gegevensmodel, migratie, opslag en JSON-validatie. Schemaversie 5
-  bevat `groups`, `routines`, `sessions`, `bodyWeights` en de optionele `ui`.
+- `data.js`: gegevensmodel, migratie, opslag en JSON-validatie. Schemaversie 6
+  bevat `groups`, `routines`, `sessions`, `bodyWeights`, `trainingTracking` en de optionele `ui`.
+  `trainingTracking` bevat `from`, `legacyToday` en `days`. Bij migratie blijft
+  oude geschiedenis vóór `from` meetellen, evenals de sessies van de migratiedag
+  zolang de gebruiker op die dag niet start. Na Start training telt van die dag
+  alleen het laatst gekozen onderdeel. Behoud concepten en eerder opgeslagen
+  gegevens bij export, import en herstel.
   Oefeningen bevatten `id`, `name`, `weight`, `reps`, `sets` (heel getal 1–99)
   en optioneel `rankingKey` voor een expliciete ranglijstkoppeling. `weight` en
   `reps` zijn de eerste-set-baseline; optioneel `setValues` bevat uitsluitend
   afwijkingen als null of {weight?, reps?}, met maximaal `sets` elementen en
   zonder overbodige trailing nulls. `getExerciseSets` geeft onafhankelijke
   volledige setrijen. Gebruik helpers voor setbewerkingen; overschrijf nooit
-  onbedoeld de andere sets. Accepteer versies 1, 2, 3 en 4 uit lokale opslag en back-ups. Migreer oefeningen uit versies
+  onbedoeld de andere sets. Accepteer versies 1 t/m 5 uit lokale opslag en back-ups. Migreer oefeningen uit versies
   1 en 2 naar één set,
   zodat oude reptotalen gelijk blijven; versies 3/4 behouden de bestaande gelijke
   sets. Migreer zonder arrays met 99 herhaalde sets of onnodige opslaggroei. Vul
   ranglijstkoppelingen automatisch in zonder vrije namen of lokale IDs te wijzigen.
   Voeg bij migratie geen lege `rankingKey`-velden toe. Verlies geen IDs, oefeningen,
   gewichten, reps, trainingsdatums, onderdelen of lichaamsmetingen.
-  De gevalideerde huidige toestand en JSON-back-up mogen maximaal 7 MiB zijn.
+  De gevalideerde huidige toestand en JSON-back-up mogen maximaal 8 MiB zijn.
 - `recovery.js`: maximaal zeven lokale herstelkopieën, laatste gewijzigde versie
   per dag plus beschermde toestand vóór importeren of terugzetten. Dedupliceer
   dezelfde inhoud; alleen `ui` wijzigen maakt geen kopie. Ongeldige kopieën mogen
@@ -204,13 +218,15 @@ bewaren na herladen, afzonderlijke invoer per onderdeel, vorige training
 Controleer wisselen tussen Push/Pull/Legs, Full body en Upper/Lower, eigen
 onderdelen, hernoemen en verbergen/terugzetten zonder verlies van geschiedenis.
 Controleer lege grafieken, gewicht/reps van de zwaarste echte set, som van losse reps,
-lichaamsgewicht per datum en trainingstellingen. Trainingstellingen betreffen
-niet-lege opgeslagen trainingen, geen voltooiingsstatus.
+lichaamsgewicht per datum en trainingstellingen. Controleer dat niet-gestarte
+concepten niet tellen, het laatst gekozen onderdeel na starten wel telt, en
+dat oude geschiedenis behouden blijft.
 
-Controleer geldige en ongeldige JSON-back-ups, migratie van versies 1/2/3/4 en
-versie-5-export/import met afwijkende sets, volgorde, ranglijstkoppelingen, eigen onderdelen en
+Controleer geldige en ongeldige JSON-back-ups, migratie van versies 1 t/m 5 en
+versie-6-export/import met afwijkende sets, volgorde, ranglijstkoppelingen, eigen onderdelen en
 lichaamsgewicht. Controleer migratie van een oud bestand vlak onder 5 MiB en
-een versie-3-bestand vlak onder 6 MiB naar de nieuwe limiet van 7 MiB.
+een versie-3-bestand vlak onder 6 MiB en een versie-5-bestand vlak onder 7 MiB
+naar de nieuwe limiet van 8 MiB.
 Controleer herstel na herladen, maximaal zeven kopieën, vervanging van de dagkopie,
 bescherming vóór import/herstel, corrupt current met geldige kopie en rollback
 bij een opslagfout. Alleen de actuele toestand hoort in de handmatige export.

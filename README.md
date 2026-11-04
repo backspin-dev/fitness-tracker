@@ -7,10 +7,18 @@ openbare naam; daarmee doe je automatisch mee aan de ranglijsten per oefening.
 
 Bij een nieuwe trainingsdag staan automatisch de oefeningen, gewichten, sets en
 reps van de **laatste eerdere training van hetzelfde onderdeel** klaar. Ieder
-onderdeel onthoudt zijn eigen training. Een aanpassing wordt vanzelf bewaard;
-gebruik **Deze training bewaren** als je dezelfde waarden opnieuw gebruikt.
+onderdeel onthoudt zijn eigen training. Een aanpassing wordt vanzelf bewaard.
 Een al opgeslagen dag houdt zijn eigen waarden en wordt niet overschreven door
 een latere training.
+
+Tik op **Start training** om je training van vandaag te registreren. Daarna kun
+je nog een ander onderdeel kiezen. Het laatst gekozen onderdeel van die dag
+geldt als je training, ook als je de app daarna sluit. Starten kan alleen voor
+vandaag. Alleen de app openen of een onderdeel bekijken registreert geen
+training. Bewerkingen zonder te starten blijven bewaard als concept, maar tellen
+niet mee in statistieken of de ranglijst. Een gestarte training wordt vanaf de
+volgende dag getoond in de geschiedenis, statistieken en ranglijst. Ook een
+gestarte training zonder oefeningen telt mee in het aantal trainingen.
 
 ## Je schema en voortgang
 
@@ -40,18 +48,17 @@ in je geschiedenis en voortgang.
   gewicht kiest de grafiek de set met de meeste reps. Gewicht en reps komen
   steeds uit dezelfde set; de metingentabel toont alle sets. Het totaal telt
   **de reps van iedere losse set** op. Sets van 12, 10 en 8 reps leveren dus
-  dertig herhalingen op. Iedere opgeslagen trainingsdag
+  dertig herhalingen op. Iedere geregistreerde trainingsdag
   telt één keer; opnieuw aanpassen vervangt die dag en telt niet dubbel.
-  Klaargezette oefeningen tellen pas mee zodra je die training bewaart of
-  aanpast. Een naamswijziging houdt de geschiedenis bij elkaar.
+  Een naamswijziging houdt de geschiedenis bij elkaar.
 - **Gewicht:** voeg je lichaamsgewicht per datum toe en bekijk de grafiek.
   Per datum is er één meting; opnieuw bewaren vervangt die meting.
 - **Trainingen:** bekijk aantallen per week en over de laatste 28 dagen, voor
   alle onderdelen of één onderdeel. Bij één onderdeel zie je ook de verschillen
   met de vorige opgeslagen training per oefening.
 
-De telling gaat over **opgeslagen trainingen**, niet over afgevinkte of afgeronde
-trainingen. Iedere set heeft een eigen gewicht en aantal reps. Met **Set toevoegen**
+De telling gaat over je gestarte trainingen en de bestaande trainingsgeschiedenis.
+Iedere set heeft een eigen gewicht en aantal reps. Met **Set toevoegen**
 kopieer je de laatste set; daarna kun je beide waarden aanpassen. Verwijderen vraagt
 een korte bevestiging en er blijft altijd minstens één set staan.
 
@@ -139,13 +146,15 @@ ranglijst. Bij import blijft de vorige huidige toestand als lokale herstelkopie
 beschikbaar.
 
 Oudere back-ups en bestaande lokale gegevens worden automatisch naar
-**schemaversie 5** omgezet. Oefeningen uit versies 1 en 2 krijgen **één set**,
+**schemaversie 6** omgezet. Oefeningen uit versies 1 en 2 krijgen **één set**,
 zodat eerdere reptotalen gelijk blijven. De koppeling met een ranglijstoefening
 wordt automatisch ingevuld; je eigen oefennamen blijven behouden. Versies 3 en 4
 behouden hun aantal sets met de eerdere kg/reps als waarden voor iedere set. Gelijke
 sets blijven compact opgeslagen; alleen afwijkingen krijgen extra velden. IDs, oefeningen,
 gewichten, reps, trainingsdatums, eigen onderdelen en lichaamsmetingen blijven
-behouden. Back-ups mogen maximaal **7 MiB** groot zijn. De extra ruimte houdt oudere
+behouden. Bestaande trainingsgeschiedenis blijft meetellen. Op de dag van de
+overgang blijft ook de bestaande geschiedenis van die dag behouden, totdat je
+zelf op **Start training** tikt. Back-ups mogen maximaal **8 MiB** groot zijn. De extra ruimte houdt oudere
 bestanden bruikbaar wanneer sets of ranglijstkoppelingen worden toegevoegd.
 
 De herstelkopieën staan op hetzelfde toestel. Websitegegevens wissen,
@@ -175,7 +184,7 @@ Het ranglijstscherm toont meteen de oefenkeuze en scores. Je openbare naam wijzi
 je via **Instellingen → Naam wijzigen**.
 Bij de eerste start vul je één openbare naam in. Het startscherm vermeldt dat
 deze naam, je ranglijstoefeningen, totale reps en zwaarste gewicht per oefening openbaar worden.
-Daarna tellen je opgeslagen trainingen automatisch mee; je hoeft niet telkens
+Daarna tellen je geregistreerde trainingen automatisch mee; je hoeft niet telkens
 iets te delen of aan te melden. Een bestaande gebruiker bevestigt zijn naam één
 keer voor deze werkwijze. Offline kun je gewoon trainen; de scores worden
 verstuurd zodra de app weer verbinding heeft.
@@ -212,10 +221,10 @@ gekoppeld.
 De ranglijst biedt **Meeste reps** en **Zwaarste gewicht** voor dezelfde oefening.
 Alleen je openbare naam en deze aggregaties worden gepubliceerd:
 de herkenbare oefennaam plus het aantal herhalingen (**som van alle losse sets**, over
-opgeslagen trainingen tot en met vandaag). Dezelfde ranglijstoefening telt
+geregistreerde trainingen van vóór vandaag en eerdere geschiedenis). Dezelfde ranglijstoefening telt
 over je verschillende onderdelen heen bij elkaar op. Het zwaarste gewicht is het
-hoogste ingevoerde gewicht uit een opgeslagen set met minstens één rep, eveneens
-tot en met vandaag. Bestaande deelnemers bevestigen de nieuwe openbare melding
+hoogste ingevoerde gewicht uit een meetellende opgeslagen set met minstens één rep.
+Bestaande deelnemers bevestigen de nieuwe openbare melding
 eenmalig met hun bestaande naam en identiteit. Oude scores zonder gewichtsrecord
 blijven bij reps zichtbaar en krijgen geen verzonnen kilogramwaarde. De technische dienst
 bewaart daarbij een anonieme identiteit en de bijwerkdatum. Bij een eigen

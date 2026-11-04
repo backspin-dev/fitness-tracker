@@ -1,5 +1,5 @@
 // Alleen afgeleid van opgeslagen lokale gegevens; geen netwerk en geen schattingen.
-import { getExerciseSets } from './data.js';
+import { getExerciseSets, isRecordedWorkout, localDate } from './data.js';
 const DAY = 86400000;
 const SVG_NS = 'http://www.w3.org/2000/svg';
 const number = new Intl.NumberFormat('nl-NL', { maximumFractionDigits: 2 });
@@ -21,14 +21,27 @@ function dateFromDay(day) {
   return new Date(day * DAY).toISOString().slice(0, 10);
 }
 
-function savedWorkouts(state, groupId = null) {
+function savedWorkouts(state, groupId = null, today = localDate()) {
   return Object.entries(state.sessions ?? {}).flatMap(([key, exercises]) => {
+    if (!isRecordedWorkout(state, key, today)) return [];
     if (!Array.isArray(exercises) || exercises.length === 0) return [];
     const match = /^(\d{4}-\d{2}-\d{2}):(.+)$/.exec(key);
     if (!match || (groupId !== null && match[2] !== groupId)) return [];
     calendarDay(match[1]);
     return [{ date: match[1], groupId: match[2], exercises }];
   }).sort((a, b) => a.date.localeCompare(b.date) || a.groupId.localeCompare(b.groupId));
+}
+
+function countedTrainings(state, groupId = null, today = localDate()) {
+  const workouts = savedWorkouts(state, groupId, today);
+  // Een expliciet gestarte dag telt ook als er nog geen oefeningen in staan.
+  for (const [date, selected] of Object.entries(state.trainingTracking?.days ?? {})) {
+    if (date >= today) continue;
+    if (groupId !== null && selected !== groupId) continue;
+    const exercises = state.sessions?.[`${date}:${selected}`];
+    if (Array.isArray(exercises) && exercises.length === 0) workouts.push({ date, groupId: selected, exercises });
+  }
+  return workouts.sort((a, b) => a.date.localeCompare(b.date) || a.groupId.localeCompare(b.groupId));
 }
 
 /** Gewicht en reps horen bij dezelfde echte set; alle sets blijven beschikbaar. */
@@ -96,7 +109,7 @@ export function bodyWeightSeries(state) {
 /** Een training is een niet-lege opgeslagen sessie, niet een geopend schema. */
 export function trainingSummary(state, today, groupId = null) {
   const from = dateFromDay(calendarDay(today) - 27);
-  const workouts = savedWorkouts(state, groupId).filter(workout => workout.date <= today);
+  const workouts = countedTrainings(state, groupId, today).filter(workout => workout.date <= today);
   return {
     total: workouts.length,
     last28Days: workouts.filter(workout => workout.date >= from).length,
@@ -116,7 +129,7 @@ export function weeklyTrainingCounts(state, today, weeks = 8, groupId = null) {
   const buckets = Array.from({ length: weeks }, (_, index) => ({
     date: dateFromDay(firstMonday + index * 7), value: 0,
   }));
-  for (const workout of savedWorkouts(state, groupId)) {
+  for (const workout of countedTrainings(state, groupId, today)) {
     const workoutDay = calendarDay(workout.date);
     if (workoutDay < firstMonday || workoutDay > day) continue;
     buckets[Math.floor((workoutDay - firstMonday) / 7)].value++;
@@ -127,7 +140,7 @@ export function weeklyTrainingCounts(state, today, weeks = 8, groupId = null) {
 /** Vergelijk per ID met de vorige niet-lege sessie van dezelfde groep. */
 export function latestWorkoutComparison(state, groupId, today) {
   calendarDay(today);
-  const workouts = savedWorkouts(state, groupId).filter(workout => workout.date <= today);
+  const workouts = savedWorkouts(state, groupId, today).filter(workout => workout.date <= today);
   const latest = workouts.at(-1);
   if (!latest) return null;
   const previous = workouts.at(-2);

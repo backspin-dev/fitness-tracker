@@ -37,6 +37,10 @@
         <div class="date-control"><label for="workout-date" id="date-label">Vandaag</label><input type="date" id="workout-date" aria-label="Trainingsdatum" min="1900-01-01"></div>
         <button class="icon-button" id="next-day" aria-label="Volgende dag"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m10 6 6 6-6 6"/></svg></button>
       </div>
+      <div class="training-start-control">
+        <button id="start-training" class="primary full" type="button" disabled>Start training</button>
+        <p id="training-start-status" class="training-start-status" role="status" hidden></p>
+      </div>
       <div class="scheme-heading"><span>JOUW SCHEMA</span><button id="groups-button" class="text-button">Schema aanpassen</button></div>
       <div id="split-tabs" class="split-tabs" role="tablist" aria-label="Trainingsschema"></div>
       <section id="workout-panel" role="tabpanel" aria-labelledby="tab-push">
@@ -78,7 +82,7 @@
     <section id="progress-training" role="tabpanel" aria-labelledby="progress-tab-training" hidden>
       <label class="field-label" for="training-group">Onderdeel</label><select id="training-group" class="text-input"></select>
       <div id="training-summary" class="summary-grid"></div><div id="training-chart"></div>
-      <p class="chart-note">Opgeslagen trainingen per week. Elke datum met oefeningen telt één keer per onderdeel. De laatste balk is de lopende week.</p>
+      <p class="chart-note">Trainingen per week. De laatste balk is de lopende week.</p>
       <div id="training-comparison"></div>
     </section>
   </section>
@@ -97,7 +101,7 @@
     <p id="backup-message" class="settings-copy" role="status"></p>
     <details><summary>Op je iPhone gebruiken</summary><p>Open deze pagina in Safari. Kies Deel → Zet op beginscherm → Open als webapp. Voer je trainingen vervolgens via dat icoon in.</p><p>De opslag in Safari en de geïnstalleerde webapp kan verschillen. Gebruik steeds hetzelfde icoon.</p></details>
     <details><summary>Privacy & opslag</summary><p>Je volledige trainingen, afzonderlijke sets en lichaamsgewicht blijven lokaal. Je gekozen naam, ranglijstoefeningen, totale reps en zwaarste gewicht per oefening zijn openbaar. Eigen oefennamen kunnen ook als suggestie verschijnen bij andere gebruikers. Een JSON deel of bewaar je zelf. De app heeft geen eigen analytics of advertenties. Een geopende uitlegvideo maakt verbinding met YouTube; YouTube kan advertenties tonen. GitHub kan je IP-adres registreren bij het laden van de app.</p><p>Wie je ontgrendelde toestel gebruikt, kan de tracker openen. De automatische kopieën zitten in dezelfde appopslag; bij wissen daarvan verdwijnen ze ook. Voor een nieuw toestel gebruik je de JSON-export.</p><p id="storage-info">De app vraagt waar mogelijk om blijvende opslag.</p></details>
-    <div class="settings-bottom"><span id="offline-status">Offline gebruik voorbereiden…</span><span>v1.10</span></div>
+    <div class="settings-bottom"><span id="offline-status">Offline gebruik voorbereiden…</span><span>v1.11</span></div>
   </section>
     </main>
     <footer class="status-footer"><span id="save-status" role="status" aria-live="polite"><span class="status-dot"></span>Even laden…</span></footer>

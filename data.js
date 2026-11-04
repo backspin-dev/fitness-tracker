@@ -4,7 +4,8 @@ import { cleanRecoveryEntries, updateRecoveryEntries } from './recovery.js';
 import { EXERCISE_CATALOG } from './exercise-catalog.js';
 
 export const SPLITS = Object.freeze(['push', 'pull', 'legs']);
-const MAX_BYTES = 7 * 1024 * 1024;
+// Ruimte voor registratiemetadata bij bestaande back-ups die al bijna 7 MiB zijn.
+const MAX_BYTES = 8 * 1024 * 1024;
 const MAX_WORKOUT_EXERCISES = 200;
 const MAX_SESSIONS = 20000;
 const MAX_TOTAL_EXERCISES = 50000;
@@ -243,10 +244,11 @@ export function localDate(date = new Date()) {
 
 export function createState() {
   return {
-    schemaVersion: 5,
+    schemaVersion: 6,
     groups: SPLITS.map(id => ({ ...GROUP_DEFAULTS[id] })),
     routines: { push: [], pull: [], legs: [] },
     sessions: {},
+    trainingTracking: { from: localDate(), legacyToday: [], days: {} },
     bodyWeights: {},
     ui: { split: 'push', date: localDate() },
   };
@@ -256,9 +258,9 @@ export function validateState(input) {
   dictionary(input, 'de back-up');
   const legacy = input.schemaVersion === 1;
   const legacySets = [1, 2].includes(input.schemaVersion);
-  if (![1, 2, 3, 4, 5].includes(input.schemaVersion)) invalid('deze back-upversie wordt niet ondersteund.');
+  if (![1, 2, 3, 4, 5, 6].includes(input.schemaVersion)) invalid('deze back-upversie wordt niet ondersteund.');
   const fields = legacy ? ['schemaVersion', 'routines', 'sessions'] :
-    ['schemaVersion', 'groups', 'routines', 'sessions', 'bodyWeights'];
+    ['schemaVersion', 'groups', 'routines', 'sessions', 'bodyWeights', ...(input.schemaVersion === 6 ? ['trainingTracking'] : [])];
   record(input, 'de back-up', [...fields, 'ui'], fields);
   // Versie 1 kende alleen PPL. Versies 1 en 2 krijgen één set: oude reptotalen blijven gelijk.
   const migratedGroups = legacy ? SPLITS.map(id => ({ ...GROUP_DEFAULTS[id] })) : groups(input.groups);
@@ -267,7 +269,7 @@ export function validateState(input) {
   dictionary(input.sessions, 'de trainingsgeschiedenis');
   const entries = Object.entries(input.sessions);
   if (entries.length > MAX_SESSIONS) invalid('de back-up bevat te veel trainingen.');
-  const result = { schemaVersion: 5, groups: migratedGroups, routines: {}, sessions: {}, bodyWeights: {} };
+  const result = { schemaVersion: 6, groups: migratedGroups, routines: {}, sessions: {}, bodyWeights: {} };
   let count = 0;
   for (const split of ids) {
     result.routines[split] = exercises(input.routines[split], legacySets, input.schemaVersion >= 5, legacySets);
@@ -282,6 +284,25 @@ export function validateState(input) {
     count += result.sessions[key].length;
     if (count > MAX_TOTAL_EXERCISES) invalid('de back-up bevat te veel oefeningen.');
   }
+  if (input.schemaVersion === 6) {
+    record(input.trainingTracking, 'de trainingsregistratie', ['from', 'legacyToday', 'days']);
+    const from = dateKey(input.trainingTracking.from);
+    if (!Array.isArray(input.trainingTracking.legacyToday) || input.trainingTracking.legacyToday.length > MAX_GROUPS) invalid('de eerdere trainingen zijn ongeldig.');
+    const legacyToday = input.trainingTracking.legacyToday.map(id => splitKey(id, result));
+    if (new Set(legacyToday).size !== legacyToday.length) invalid('de eerdere trainingen bevatten dubbele onderdelen.');
+    dictionary(input.trainingTracking.days, 'de gestarte trainingen');
+    const days = {};
+    if (Object.keys(input.trainingTracking.days).length > MAX_SESSIONS) invalid('de back-up bevat te veel gestarte trainingen.');
+    for (const [day, group] of Object.entries(input.trainingTracking.days)) {
+      if (dateKey(day) < from) invalid('de startdatum van een training is ongeldig.');
+      days[day] = splitKey(group, result);
+    }
+    result.trainingTracking = { from, legacyToday, days };
+  } else {
+    const from = localDate();
+    const legacyToday = Object.keys(result.sessions).filter(key => key.startsWith(`${from}:`)).map(key => key.slice(11));
+    result.trainingTracking = { from, legacyToday, days: {} };
+  }
   if (!legacy) {
     dictionary(input.bodyWeights, 'de gewichtsmetingen');
     const weights = Object.entries(input.bodyWeights);
@@ -294,9 +315,30 @@ export function validateState(input) {
   }
   // Compacte exports houden ook grote oude back-ups binnen de importlimiet.
   if (new TextEncoder().encode(JSON.stringify(result)).byteLength > MAX_BYTES) {
-    invalid('de back-up is groter dan 7 MB.');
+    invalid('de back-up is groter dan 8 MB.');
   }
   return result;
+}
+
+// Schemaconcepten blijven bewaard, maar tellen pas na een expliciete start.
+export function isRecordedWorkout(state, key, today = localDate()) {
+  const tracking = state.trainingTracking;
+  if (!tracking) return true; // Voor oude on-gemigreerde toestanden en tests.
+  const day = key.slice(0, 10), group = key.slice(11);
+  if (day < tracking.from) return true;
+  if (Object.hasOwn(tracking.days, day)) return day < today && tracking.days[day] === group;
+  return day === tracking.from && tracking.legacyToday.includes(group);
+}
+
+export function startTraining(state, date, group) {
+  const next = validateState(state);
+  dateKey(date); splitKey(group, next);
+  if (date < next.trainingTracking.from) invalid('deze datum ligt vóór de nieuwe trainingsregistratie.');
+  const workout = getWorkout(next, date, group);
+  next.trainingTracking.days[date] = group;
+  next.sessions[`${date}:${group}`] = workout;
+  next.ui = { split: group, date };
+  return validateState(next);
 }
 
 export function getPreviousWorkout(state, date, split) {

@@ -212,10 +212,10 @@ test('individual sets survive local storage and protected legacy recovery; a cur
   const original = globalThis.indexedDB;
   const storage = fakeIndexedDB(); globalThis.indexedDB = storage;
   try {
-    const legacy = trained(8); legacy.schemaVersion = 4;
+    const legacy = trained(8); legacy.schemaVersion = 4; delete legacy.trainingTracking;
     storage.saved.set('current', structuredClone(legacy));
     const migrated = await loadState();
-    assert.equal(migrated.schemaVersion, 5);
+    assert.equal(migrated.schemaVersion, 6);
     const current = commitWorkout(migrated, '2000-01-01', 'push', [
       setExerciseSet(migrated.sessions['2000-01-01:push'][0], 2, { weight: 30, reps: 5 }),
     ]);
@@ -223,7 +223,7 @@ test('individual sets survive local storage and protected legacy recovery; a cur
     assert.deepEqual(await loadState(), current);
     const copies = await listRecoveryBackups();
     const previous = await loadRecoveryBackup(copies.find(copy => copy.reason === 'import').id);
-    assert.equal(previous.schemaVersion, 5);
+    assert.equal(previous.schemaVersion, 6);
     assert.ok(getExerciseSets(previous.sessions['2000-01-01:push'][0]).every(row => row.weight === 20 && row.reps === 8));
     const currentCopy = await loadRecoveryBackup(copies.find(copy => copy.reason === 'daily').id);
     assert.deepEqual(getExerciseSets(currentCopy.sessions['2000-01-01:push'][0]),

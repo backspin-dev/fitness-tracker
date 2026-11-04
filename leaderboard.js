@@ -1,6 +1,6 @@
 // Na naambevestiging worden alleen alias, ranglijstoefeningen, totale reps en zwaarste gewicht gedeeld.
 import { EXERCISE_CATALOG, normalizeExerciseName, resolveRankingExercise } from './exercise-catalog.js';
-import { getExerciseSets } from './data.js';
+import { getExerciseSets, isRecordedWorkout } from './data.js';
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const SCORE_MODE = 'exercise-v2';
 
@@ -37,7 +37,7 @@ export function totalSavedReps(state, today) {
   let total = 0;
   for (const [key, exercises] of Object.entries(state.sessions ?? {})) {
     const match = /^(\d{4}-\d{2}-\d{2}):[^:]+$/.exec(key);
-    if (!match || match[1] > today || !Array.isArray(exercises)) continue;
+    if (!match || match[1] > today || !Array.isArray(exercises) || !isRecordedWorkout(state, key, today)) continue;
     for (const exercise of exercises) {
       total += exerciseReps(exercise);
     }
@@ -50,7 +50,7 @@ export function aggregateExerciseScores(state, today) {
   const totals = new Map(), latest = new Map();
   const workouts = Object.entries(state.sessions ?? {}).filter(([key, exercises]) => {
     const match = /^(\d{4}-\d{2}-\d{2}):[^:]+$/.exec(key);
-    return match && match[1] <= today && Array.isArray(exercises);
+    return match && match[1] <= today && Array.isArray(exercises) && isRecordedWorkout(state, key, today);
   }).sort(([a], [b]) => a.localeCompare(b));
   const identity = (key, exercise, index) => exercise.id ? `${key.slice(11)}:${exercise.id}` : `${key}:${index}`;
   for (const [key, exercises] of workouts) exercises.forEach((exercise, index) => latest.set(identity(key, exercise, index), exercise));

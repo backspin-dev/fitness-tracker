@@ -1,4 +1,4 @@
-import { createState, localDate, getWorkout, getPreviousWorkout, commitWorkout, loadState, saveState, validateState, exportBackup, ensureRecoveryBackup, setExerciseRanking, reorderWorkout } from './data.js';
+import { createState, localDate, getWorkout, getPreviousWorkout, commitWorkout, loadState, saveState, validateState, exportBackup, ensureRecoveryBackup, setExerciseRanking, reorderWorkout, startTraining, isRecordedWorkout } from './data.js';
 import { setupGroups } from './groups-ui.js';
 import { setupProgress } from './progress-ui.js';
 import { hasTrainingData } from './backup-reminder.js';
@@ -92,6 +92,12 @@ function updateContext() {
   $('date-label').textContent = date === today ? 'Vandaag' : 'Training';
   $('next-day').disabled = date >= today;
   $('previous-day').disabled = date <= '1900-01-01';
+  const started = Object.hasOwn(state.trainingTracking.days, today);
+  const startButton = $('start-training');
+  startButton.hidden = date !== today || started;
+  startButton.disabled = !loaded || importing || date !== today || started;
+  $('training-start-status').hidden = date !== today || !started;
+  $('training-start-status').textContent = started ? `Training gestart · ${groupInfo(state.trainingTracking.days[today]).name}` : '';
   const workout = getWorkout(state, date, split);
   const recorded = Object.hasOwn(state.sessions, `${date}:${split}`);
   const previous = recorded ? null : getPreviousWorkout(state, date, split);
@@ -101,8 +107,8 @@ function updateContext() {
   $('history-note').hidden = date === today;
   $('history-note').textContent = recorded
     ? 'Je bewerkt de opgeslagen training op deze datum. Andere opgeslagen trainingen blijven behouden.'
-    : 'Op deze datum staat nog geen training. De oefeningen staan alvast klaar; pas ze aan of bewaar deze training.';
-  $('record-workout').hidden = recorded || !workout.length;
+    : 'Op deze datum staat nog geen training. Je oefeningen staan alvast klaar.';
+  $('record-workout').hidden = true;
   $('workout-hint').textContent = recorded ? 'Elke wijziging wordt automatisch bewaard.' : previous ? 'Je vorige oefeningen, gewichten, sets en reps staan klaar. Alleen aanpassen wat verandert.' : 'Stel je oefeningen één keer in. De volgende keer staan ze klaar.';
 }
 function render() {
@@ -153,7 +159,17 @@ function render() {
 function selectDate(value) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value) || value > localDate() || value < '1900-01-01') { updateContext(); return; }
   if (Number.isNaN(new Date(`${value}T12:00:00`).getTime())) { updateContext(); return; }
-  date = value; render();
+  date = value;
+  if (date === localDate() && Object.hasOwn(state.trainingTracking.days, date)) split = state.trainingTracking.days[date];
+  render();
+}
+function selectTrainingGroup(group) {
+  split = group;
+  if (loaded && !importing && date === localDate() && Object.hasOwn(state.trainingTracking.days, date)) {
+    try { state = startTraining(state, date, split); queueSave(); }
+    catch (error) { showError(error.message); }
+  }
+  render();
 }
 function moveDate(amount) {
   const target = new Date(`${date}T12:00:00`); target.setDate(target.getDate() + amount); selectDate(localDate(target));
@@ -191,18 +207,23 @@ function confirmAction(title, message, action) {
 document.querySelectorAll('.close-dialog').forEach(button => button.addEventListener('click', () => button.closest('dialog').close()));
 $('split-tabs').addEventListener('click', event => {
   const button = event.target.closest('[data-split]'); if (!button || !loaded || importing) return;
-  split = button.dataset.split; render();
+  selectTrainingGroup(button.dataset.split);
 });
 $('split-tabs').addEventListener('keydown', event => {
   if (!loaded || importing || !['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
   event.preventDefault(); const keys = state.groups.filter(group => !group.archived || group.id === split).map(group => group.id), index = keys.indexOf(split);
-  split = event.key === 'Home' ? keys[0] : event.key === 'End' ? keys.at(-1) : keys[(index + (event.key === 'ArrowRight' ? 1 : keys.length - 1)) % keys.length];
-  render(); $(`tab-${split}`).focus();
+  selectTrainingGroup(event.key === 'Home' ? keys[0] : event.key === 'End' ? keys.at(-1) : keys[(index + (event.key === 'ArrowRight' ? 1 : keys.length - 1)) % keys.length]);
+  $(`tab-${split}`).focus();
 });
 $('workout-date').addEventListener('change', event => selectDate(event.target.value));
 $('previous-day').addEventListener('click', () => moveDate(-1));
 $('next-day').addEventListener('click', () => moveDate(1));
 $('add-exercise').addEventListener('click', () => openExercise());
+$('start-training').addEventListener('click', () => {
+  if (!loaded || importing || date !== localDate() || Object.hasOwn(state.trainingTracking.days, date)) return;
+  try { state = startTraining(state, date, split); queueSave(); render(); }
+  catch (error) { showError(error.message); }
+});
 $('record-workout').addEventListener('click', async () => { if (await changeWorkout(getWorkout(state, date, split))) toast('Training bewaard.'); });
 $('exercise-form').addEventListener('submit', event => {
   event.preventDefault();
@@ -232,12 +253,12 @@ $('delete-exercise').addEventListener('click', async () => {
 });
 navigation.onOpen('gegevens', () => { void recovery.refresh(); });
 $('history-button').addEventListener('click', () => {
-  const items = Object.entries(state.sessions).sort(([a], [b]) => b.localeCompare(a)).map(([key, workout]) => {
+  const items = Object.entries(state.sessions).filter(([key]) => isRecordedWorkout(state, key)).sort(([a], [b]) => b.localeCompare(a)).map(([key, workout]) => {
     const [day, type] = key.split(':'); const button = document.createElement('button'); button.className = 'history-item';
     const description = document.createElement('div'); description.append(textNode('strong', `${groupInfo(type).name} · ${prettyDate(day)}`), textNode('small', `${workout.length} oefening${workout.length === 1 ? '' : 'en'}`));
     button.append(description, textNode('span', '›')); button.addEventListener('click', () => { split = type; date = day; render(); $('history-dialog').close(); navigation.open('training'); }); return button;
   });
-  $('history-list').replaceChildren(...(items.length ? items : [textNode('p', 'Nog geen trainingen bewaard. Je eerste wijziging wordt automatisch opgeslagen.', 'settings-copy')]));
+  $('history-list').replaceChildren(...(items.length ? items : [textNode('p', 'Nog geen eerdere trainingen.', 'settings-copy')]));
   $('history-dialog').showModal();
 });
 $('export-backup').addEventListener('click', exportFile);
@@ -272,7 +293,7 @@ $('import-file').addEventListener('change', async event => {
   let importedSuccessfully = false;
   importReading = true;
   try {
-    if (file.size > 7 * 1024 * 1024) throw new Error('Het bestand is groter dan 7 MB.');
+    if (file.size > 8 * 1024 * 1024) throw new Error('Het bestand is groter dan 8 MB.');
     const imported = validateState(JSON.parse(await file.text()));
     const count = Object.values(imported.routines).reduce((sum, list) => sum + list.length, 0);
     const sessions = Object.keys(imported.sessions).length;
@@ -308,6 +329,7 @@ function handleNewDay() {
     }
     knownToday = today;
     render();
+    progress.refresh(); leaderboard.onSaved();
   }
 }
 document.addEventListener('visibilitychange', handleNewDay);
@@ -347,6 +369,9 @@ function changeState(next, options = {}) {
   state = validateState(next);
   if (options.selectFromState) split = state.ui.split;
   if (options.today) date = localDate();
+  if (options.selectFromState && date === localDate() && Object.hasOwn(state.trainingTracking.days, date) && state.trainingTracking.days[date] !== split) {
+    state = startTraining(state, date, split);
+  }
   state.ui = { split, date };
   const saved = queueSave(); render(); return saved;
 }
