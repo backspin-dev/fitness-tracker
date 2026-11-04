@@ -26,7 +26,8 @@ export function setupNavigation({ document = globalThis.document, window = globa
     const section = [...document.querySelectorAll('[data-app-page]')].find(node => node.dataset.appPage === page);
     if (focus) {
       const start = page === 'training' ? section?.querySelector('#start-training:not([hidden])') : null;
-      const target = start ? (start.disabled ? section : start) : section?.querySelector('h2, h1');
+      const emptyHistory = page === 'training' ? section?.querySelector('#historical-empty-note:not([hidden])') : null;
+      const target = start ? (start.disabled ? section : start) : emptyHistory || section?.querySelector('h2, h1');
       if (target) { if (target !== start) target.setAttribute('tabindex', '-1'); target.focus({ preventScroll: true }); }
     }
     window.scrollTo({ top: positions.get(page) || 0, left: 0, behavior: 'auto' });

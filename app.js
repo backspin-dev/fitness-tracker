@@ -1,4 +1,4 @@
-import { createState, localDate, getWorkout, getPreviousWorkout, commitWorkout, loadState, saveState, validateState, exportBackup, ensureRecoveryBackup, setExerciseRanking, reorderWorkout, startTraining, isRecordedWorkout } from './data.js';
+import { createState, localDate, getWorkout, getPreviousWorkout, commitWorkout, loadState, saveState, validateState, exportBackup, ensureRecoveryBackup, setExerciseRanking, reorderWorkout, startTraining, isRecordedWorkout, hasTrainingOnDate } from './data.js';
 import { setupGroups } from './groups-ui.js';
 import { setupProgress } from './progress-ui.js';
 import { hasTrainingData } from './backup-reminder.js';
@@ -18,6 +18,7 @@ let savedState = state;
 let saveQueue = Promise.resolve(), revision = 0, pending = 0, failed = false;
 let editId = null, toastTimer, releaseEditor = null;
 let knownToday = localDate(), importing = false, importReading = false;
+let activePastTraining = null;
 let exporting = false;
 let ownsEditor = false, recoverableLoadError = false;
 let workoutOrder = null, updates = null, updateInput = null, appInitialized = false, updateRefreshTimer;
@@ -92,19 +93,24 @@ function updateContext() {
   $('date-label').textContent = date === today ? 'Vandaag' : 'Training';
   $('next-day').disabled = date >= today;
   $('previous-day').disabled = date <= '1900-01-01';
-  const started = Object.hasOwn(state.trainingTracking.days, today);
-  const awaitingStart = date === today && !started;
+  const started = date === today ? Object.hasOwn(state.trainingTracking.days, date) : hasTrainingOnDate(state, date, today);
+  const awaitingStart = !started;
+  const key = `${date}:${split}`;
+  const historicalGap = date < today && activePastTraining !== date && started &&
+    (!Object.hasOwn(state.sessions, key) || !isRecordedWorkout(state, key, today));
   const startButton = $('start-training');
   startButton.hidden = !awaitingStart;
-  startButton.disabled = !loaded || importing || date !== today || started;
+  startButton.disabled = !loaded || importing || date > today || started;
   $('scheme-heading').hidden = awaitingStart;
   $('split-tabs').hidden = awaitingStart;
-  $('workout-content').hidden = awaitingStart;
+  $('workout-content').hidden = awaitingStart || historicalGap;
+  $('historical-empty-note').hidden = !historicalGap;
   const panel = $('workout-panel');
   if (awaitingStart) { panel.removeAttribute('role'); panel.removeAttribute('aria-labelledby'); }
   else { panel.setAttribute('role', 'tabpanel'); panel.setAttribute('aria-labelledby', `tab-${split}`); }
-  $('training-start-status').hidden = date !== today || !started;
-  $('training-start-status').textContent = started ? `Training gestart · ${groupInfo(state.trainingTracking.days[today]).name}` : '';
+  const chosen = state.trainingTracking.days[date];
+  $('training-start-status').hidden = !chosen || (date !== today && activePastTraining !== date);
+  $('training-start-status').textContent = chosen ? `Training gestart · ${groupInfo(chosen).name}` : '';
   const workout = getWorkout(state, date, split);
   const recorded = Object.hasOwn(state.sessions, `${date}:${split}`);
   const previous = recorded ? null : getPreviousWorkout(state, date, split);
@@ -166,13 +172,19 @@ function render() {
 function selectDate(value) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value) || value > localDate() || value < '1900-01-01') { updateContext(); return; }
   if (Number.isNaN(new Date(`${value}T12:00:00`).getTime())) { updateContext(); return; }
+  if (date !== value) activePastTraining = null;
   date = value;
-  if (date === localDate() && Object.hasOwn(state.trainingTracking.days, date)) split = state.trainingTracking.days[date];
+  if (Object.hasOwn(state.trainingTracking.days, date)) split = state.trainingTracking.days[date];
+  else if (date < localDate()) {
+    const recordedGroups = Object.entries(state.sessions).filter(([key, workout]) =>
+      key.startsWith(`${date}:`) && workout.length > 0 && isRecordedWorkout(state, key)).map(([key]) => key.slice(11));
+    if (recordedGroups.length && !recordedGroups.includes(split)) split = recordedGroups[0];
+  }
   render();
 }
 function selectTrainingGroup(group) {
   split = group;
-  if (loaded && !importing && date === localDate() && Object.hasOwn(state.trainingTracking.days, date)) {
+  if (loaded && !importing && (date === localDate() || activePastTraining === date) && Object.hasOwn(state.trainingTracking.days, date)) {
     try { state = startTraining(state, date, split); queueSave(); }
     catch (error) { showError(error.message); }
   }
@@ -227,9 +239,11 @@ $('previous-day').addEventListener('click', () => moveDate(-1));
 $('next-day').addEventListener('click', () => moveDate(1));
 $('add-exercise').addEventListener('click', () => openExercise());
 $('start-training').addEventListener('click', () => {
-  if (!loaded || importing || date !== localDate() || Object.hasOwn(state.trainingTracking.days, date)) return;
+  const today = localDate();
+  const started = date === today ? Object.hasOwn(state.trainingTracking.days, date) : hasTrainingOnDate(state, date, today);
+  if (!loaded || importing || date > today || started) return;
   try {
-    state = startTraining(state, date, split); queueSave(); render();
+    state = startTraining(state, date, split); activePastTraining = date < localDate() ? date : null; queueSave(); render();
     $('split-title').setAttribute('tabindex', '-1'); $('split-title').focus({ preventScroll: true });
   }
   catch (error) { showError(error.message); }
@@ -266,7 +280,7 @@ $('history-button').addEventListener('click', () => {
   const items = Object.entries(state.sessions).filter(([key]) => isRecordedWorkout(state, key)).sort(([a], [b]) => b.localeCompare(a)).map(([key, workout]) => {
     const [day, type] = key.split(':'); const button = document.createElement('button'); button.className = 'history-item';
     const description = document.createElement('div'); description.append(textNode('strong', `${groupInfo(type).name} · ${prettyDate(day)}`), textNode('small', `${workout.length} oefening${workout.length === 1 ? '' : 'en'}`));
-    button.append(description, textNode('span', '›')); button.addEventListener('click', () => { split = type; date = day; render(); $('history-dialog').close(); navigation.open('training'); }); return button;
+    button.append(description, textNode('span', '›')); button.addEventListener('click', () => { activePastTraining = null; split = type; date = day; render(); $('history-dialog').close(); navigation.open('training'); }); return button;
   });
   $('history-list').replaceChildren(...(items.length ? items : [textNode('p', 'Nog geen eerdere trainingen.', 'settings-copy')]));
   $('history-dialog').showModal();
@@ -315,7 +329,7 @@ $('import-file').addEventListener('change', async event => {
     await saveQueue;
     if (failed) throw new Error('Bewaar of exporteer eerst je huidige wijzigingen voordat je gegevens vervangt.');
     await saveState(imported, { protectCurrent: 'import' });
-    state = savedState = imported; split = imported.ui?.split || imported.groups.find(group => !group.archived).id; date = localDate(); failed = false;
+    state = savedState = imported; split = imported.trainingTracking.days[localDate()] || imported.ui?.split || imported.groups.find(group => !group.archived).id; date = localDate(); activePastTraining = null; failed = false;
     $('app-error').hidden = true; setStatus('Bewaard op dit apparaat');
     $('backup-message').textContent = 'Import gelukt. Je gegevens zijn op dit apparaat bewaard.';
     importedSuccessfully = true; toast('Je oefeningen staan klaar.');
@@ -378,8 +392,8 @@ function changeState(next, options = {}) {
   if (!loaded || importing) return Promise.resolve(false);
   state = validateState(next);
   if (options.selectFromState) split = state.ui.split;
-  if (options.today) date = localDate();
-  if (options.selectFromState && date === localDate() && Object.hasOwn(state.trainingTracking.days, date) && state.trainingTracking.days[date] !== split) {
+  if (options.today) { date = localDate(); activePastTraining = null; }
+  if (options.selectFromState && (date === localDate() || activePastTraining === date) && Object.hasOwn(state.trainingTracking.days, date) && state.trainingTracking.days[date] !== split) {
     state = startTraining(state, date, split);
   }
   state.ui = { split, date };
@@ -402,7 +416,7 @@ const recovery = setupRecovery({ canEdit: () => ownsEditor && (loaded || recover
     if (failed) throw new Error('Bewaar of exporteer eerst je huidige wijzigingen voordat je een kopie terugzet.');
     const restored = validateState(snapshot);
     await saveState(restored, { protectCurrent: 'restore' });
-    state = savedState = restored; split = state.ui?.split || state.groups.find(group => !group.archived).id; date = localDate();
+    state = savedState = restored; split = state.trainingTracking.days[localDate()] || state.ui?.split || state.groups.find(group => !group.archived).id; date = localDate(); activePastTraining = null;
     loaded = true; recoverableLoadError = false; failed = false; $('app-error').hidden = true;
     $('import-backup').disabled = false; $('export-backup').disabled = false;
     restoredSuccessfully = true; setStatus('Bewaard op dit apparaat'); return true;
@@ -442,7 +456,7 @@ async function init() {
       });
     }
     ownsEditor = canEdit;
-    state = savedState = await loadState() || createState(); split = state.ui?.split || state.groups.find(group => !group.archived).id; loaded = canEdit;
+    state = savedState = await loadState() || createState(); split = state.trainingTracking.days[date] || state.ui?.split || state.groups.find(group => !group.archived).id; loaded = canEdit;
     render();
     if (canEdit) {
       try { await ensureRecoveryBackup(state); }

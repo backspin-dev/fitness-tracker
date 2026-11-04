@@ -1,11 +1,56 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createState, validateState, commitWorkout, startTraining, getWorkout, localDate } from '../data.js';
+import { createState, validateState, commitWorkout, startTraining, getWorkout, localDate, hasTrainingOnDate, isRecordedWorkout } from '../data.js';
 import { trainingSummary } from '../stats.js';
 import { totalSavedReps, aggregateExerciseScores } from '../leaderboard.js';
 
 const exercise = (name, reps, weight) => ({ id: name.toLowerCase().replaceAll(' ', '-'), name, reps, weight, sets: 1 });
 const nextDay = () => { const date = new Date(); date.setDate(date.getDate() + 1); return localDate(date); };
+const previousDay = () => { const date = new Date(); date.setDate(date.getDate() - 1); return localDate(date); };
+
+test('een eerdere lege dag blijft ongestart tot expliciete start en telt alleen het laatst gekozen onderdeel', () => {
+  const today = localDate(), yesterday = previousDay();
+  let state = createState();
+  state.routines.push = [exercise('Bench press', 8, 30)];
+  state.routines.pull = [exercise('Dumbbell row', 9, 20)];
+  const original = JSON.stringify(state);
+  assert.equal(hasTrainingOnDate(state, yesterday), false);
+  assert.equal(getWorkout(state, yesterday, 'push')[0].reps, 8);
+  assert.equal(JSON.stringify(state), original, 'Bekijken van een schema verandert niets.');
+  assert.equal(trainingSummary(state, today).total, 0);
+  state = startTraining(state, yesterday, 'push');
+  assert.equal(hasTrainingOnDate(state, yesterday), true);
+  assert.equal(trainingSummary(state, today).total, 1);
+  assert.equal(totalSavedReps(state, today), 8);
+  state = startTraining(state, yesterday, 'pull');
+  state = validateState(JSON.parse(JSON.stringify(state)));
+  assert.equal(state.trainingTracking.from, today, 'Historische migratiegrens verandert niet.');
+  assert.equal(trainingSummary(state, today).total, 1);
+  assert.equal(totalSavedReps(state, today), 9);
+  assert.equal(isRecordedWorkout(state, `${yesterday}:push`, today), false);
+  assert.equal(isRecordedWorkout(state, `${yesterday}:pull`, today), true);
+  assert.equal(state.sessions[`${yesterday}:push`][0].reps, 8, 'Niet-geselecteerde data blijft bewaard.');
+  assert.throws(() => startTraining(state, nextDay(), 'push'), /toekomst/);
+});
+
+test('bestaande historische groepen blijven behouden als een andere eerdere dag wordt gestart', () => {
+  const today = localDate(), yesterday = previousDay();
+  let legacy = createState();
+  legacy.sessions['2000-01-01:push'] = [exercise('Bench press', 5, 20)];
+  legacy.sessions['2000-01-01:pull'] = [exercise('Dumbbell row', 7, 15)];
+  legacy.schemaVersion = 5; delete legacy.trainingTracking;
+  let state = validateState(legacy);
+  assert.equal(hasTrainingOnDate(state, '2000-01-01'), true);
+  assert.equal(hasTrainingOnDate(state, yesterday), false);
+  assert.equal(trainingSummary(state, today).total, 2);
+  state = startTraining(state, yesterday, 'legs');
+  assert.equal(trainingSummary(state, today).total, 3);
+  assert.equal(totalSavedReps(state, today), 12);
+  assert.equal(isRecordedWorkout(state, '2000-01-01:push'), true);
+  assert.equal(isRecordedWorkout(state, '2000-01-01:pull'), true);
+  assert.equal(state.sessions['2000-01-01:push'][0].reps, 5);
+  assert.equal(state.sessions['2000-01-01:pull'][0].reps, 7);
+});
 
 test('concepten tellen pas na start, de laatste gekozen groep telt en overleeft export', () => {
   const day = localDate();

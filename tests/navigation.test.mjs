@@ -85,3 +85,17 @@ test('returning to training focuses the start button until a workout is open', (
   navigation.open('statistieken'); navigation.open('training');
   assert.deepEqual(focused, ['start', 'heading']);
 });
+
+test('returning to an empty historical tab focuses its visible explanation', () => {
+  const env = environment(), training = env.pages[0], focused = [];
+  const message = { setAttribute() {}, focus: () => focused.push('empty history') };
+  const hiddenHeading = { setAttribute() {}, focus: () => focused.push('hidden heading') };
+  training.querySelector = selector => {
+    if (selector.startsWith('#start-training')) return null;
+    if (selector.startsWith('#historical-empty-note')) return message;
+    return hiddenHeading;
+  };
+  const navigation = setupNavigation(env); navigation.start();
+  navigation.open('statistieken'); navigation.open('training');
+  assert.deepEqual(focused, ['empty history']);
+});

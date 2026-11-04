@@ -294,7 +294,7 @@ export function validateState(input) {
     const days = {};
     if (Object.keys(input.trainingTracking.days).length > MAX_SESSIONS) invalid('de back-up bevat te veel gestarte trainingen.');
     for (const [day, group] of Object.entries(input.trainingTracking.days)) {
-      if (dateKey(day) < from) invalid('de startdatum van een training is ongeldig.');
+      dateKey(day);
       days[day] = splitKey(group, result);
     }
     result.trainingTracking = { from, legacyToday, days };
@@ -325,15 +325,26 @@ export function isRecordedWorkout(state, key, today = localDate()) {
   const tracking = state.trainingTracking;
   if (!tracking) return true; // Voor oude on-gemigreerde toestanden en tests.
   const day = key.slice(0, 10), group = key.slice(11);
-  if (day < tracking.from) return true;
   if (Object.hasOwn(tracking.days, day)) return day < today && tracking.days[day] === group;
+  if (day < tracking.from) return true;
   return day === tracking.from && tracking.legacyToday.includes(group);
+}
+
+// Ook vóór de registratiemigratie blijven uitsluitend echt opgeslagen sessies
+// zichtbaar als bestaande geschiedenis. Alleen vooringevulde schema's tellen niet.
+export function hasTrainingOnDate(state, date, today = localDate()) {
+  dateKey(date);
+  if (Object.hasOwn(state.trainingTracking?.days ?? {}, date)) return true;
+  return (state.groups ?? []).some(({ id }) => {
+    const key = `${date}:${id}`, workout = state.sessions?.[key];
+    return Array.isArray(workout) && workout.length > 0 && isRecordedWorkout(state, key, today);
+  });
 }
 
 export function startTraining(state, date, group) {
   const next = validateState(state);
   dateKey(date); splitKey(group, next);
-  if (date < next.trainingTracking.from) invalid('deze datum ligt vóór de nieuwe trainingsregistratie.');
+  if (date > localDate()) invalid('een training kan niet in de toekomst starten.');
   const workout = getWorkout(next, date, group);
   next.trainingTracking.days[date] = group;
   next.sessions[`${date}:${group}`] = workout;
